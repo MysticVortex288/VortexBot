@@ -3,6 +3,7 @@ from discord.ext import commands
 import random
 import asyncio
 from datetime import datetime, timedelta
+import os  # Für Umgebungsvariablen
 
 bot = commands.Bot(command_prefix="!", intents=discord.Intents.all())
 
@@ -87,6 +88,11 @@ async def pay(ctx, member: discord.Member, amount: int):
     sender = ctx.author.id
     receiver = member.id
     
+    # Validierung des Betrags
+    if amount <= 0:
+        await ctx.send("❌ Der Betrag muss positiv sein!")
+        return
+    
     if sender not in economy_data or economy_data[sender]["balance"] < amount:
         await ctx.send("❌ Du hast nicht genug Coins!")
         return
@@ -132,4 +138,10 @@ async def balance(ctx):
     await ctx.send(embed=embed)
 
 # Starte den Bot
-bot.run("DEIN_DISCORD_TOKEN")
+if __name__ == "__main__":
+    discord_token = os.getenv("DISCORD_TOKEN")
+    
+    if discord_token is None:
+        raise ValueError("Das Discord-Token wurde nicht gefunden! Bitte überprüfe die Umgebungsvariablen.")
+    
+    bot.run(discord_token)
