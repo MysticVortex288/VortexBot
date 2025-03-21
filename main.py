@@ -277,6 +277,7 @@ async def untimeout_user(ctx, member: discord.Member, reason=None):
         pass
 
 @bot.command()
+@commands.has_permissions(administrator=True)
 async def online(ctx):
     uptime = datetime.datetime.utcnow() - bot.start_time
     hours = uptime.seconds // 3600
@@ -316,6 +317,11 @@ async def online(ctx):
     
     await ctx.send(embed=embed)
 
+@online.error
+async def online_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("❌ Du brauchst Administrator-Rechte um diesen Befehl zu nutzen!")
+
 @bot.command()
 async def help(ctx, category=None):
     if category is None:
@@ -323,8 +329,7 @@ async def help(ctx, category=None):
         embed = discord.Embed(
             title="🤖 Bot Hilfe",
             description="Hier sind die verfügbaren Kategorien:\n\n"
-                      "• `!help moderation` - Moderationsbefehle (nur Admin)\n"
-                      "• `!online` - Zeigt den Bot-Status\n\n"
+                      "• `!help moderation` - Moderations- und Statusbefehle\n\n"
                       "Weitere Kategorien kommen bald!",
             color=discord.Color.blue()
         )
@@ -334,10 +339,15 @@ async def help(ctx, category=None):
     elif category.lower() == "moderation":
         # Moderations-Hilfe
         embed = discord.Embed(
-            title="🛡️ Moderationsbefehle",
+            title="🛡️ Moderations- und Statusbefehle",
             description="**Diese Befehle können nur von Administratoren verwendet werden!**\n\n"
-                       "Hier sind alle verfügbaren Moderationsbefehle:",
+                       "Hier sind alle verfügbaren Befehle:",
             color=discord.Color.green()
+        )
+        embed.add_field(
+            name="!online",
+            value="Zeigt detaillierte Statusinformationen des Bots",
+            inline=False
         )
         embed.add_field(
             name="!kick @user [grund]",
