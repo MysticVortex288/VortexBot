@@ -1,0 +1,25 @@
+# Umgebungsvariablen
+.env
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# VS Code
+.vscode/
+
+# Logs
+*.log
+
+# Datenbank
+*.db
+*.sqlite3
+
+# Sonstige
+.DS_Store
