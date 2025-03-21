@@ -18,6 +18,7 @@ bot = commands.Bot(command_prefix='!', intents=intents, help_command=None)
 # Event: Bot ist bereit
 @bot.event
 async def on_ready():
+    bot.start_time = datetime.datetime.utcnow()
     print(f'Bot ist online als {bot.user}')
     try:
         synced = await bot.tree.sync()
@@ -276,13 +277,54 @@ async def untimeout_user(ctx, member: discord.Member, reason=None):
         pass
 
 @bot.command()
+async def online(ctx):
+    uptime = datetime.datetime.utcnow() - bot.start_time
+    hours = uptime.seconds // 3600
+    minutes = (uptime.seconds % 3600) // 60
+    seconds = uptime.seconds % 60
+
+    embed = discord.Embed(
+        title="🟢 Bot Status",
+        color=discord.Color.green()
+    )
+    
+    embed.add_field(
+        name="Status",
+        value="Online und bereit!",
+        inline=False
+    )
+    
+    embed.add_field(
+        name="Latenz",
+        value=f"🏓 {round(bot.latency * 1000)}ms",
+        inline=True
+    )
+    
+    embed.add_field(
+        name="Uptime",
+        value=f"⏰ {uptime.days}d {hours}h {minutes}m {seconds}s",
+        inline=True
+    )
+    
+    embed.add_field(
+        name="Server",
+        value=f"🌐 {len(bot.guilds)} Server",
+        inline=True
+    )
+    
+    embed.set_footer(text=f"Bot Version: 1.0 • Gestartet am {bot.start_time.strftime('%d.%m.%Y um %H:%M:%S')}")
+    
+    await ctx.send(embed=embed)
+
+@bot.command()
 async def help(ctx, category=None):
     if category is None:
         # Hauptmenü
         embed = discord.Embed(
             title="🤖 Bot Hilfe",
             description="Hier sind die verfügbaren Kategorien:\n\n"
-                      "• `!help moderation` - Moderationsbefehle\n\n"
+                      "• `!help moderation` - Moderationsbefehle (nur Admin)\n"
+                      "• `!online` - Zeigt den Bot-Status\n\n"
                       "Weitere Kategorien kommen bald!",
             color=discord.Color.blue()
         )
@@ -293,7 +335,8 @@ async def help(ctx, category=None):
         # Moderations-Hilfe
         embed = discord.Embed(
             title="🛡️ Moderationsbefehle",
-            description="Hier sind alle verfügbaren Moderationsbefehle:",
+            description="**Diese Befehle können nur von Administratoren verwendet werden!**\n\n"
+                       "Hier sind alle verfügbaren Moderationsbefehle:",
             color=discord.Color.green()
         )
         embed.add_field(
@@ -316,7 +359,7 @@ async def help(ctx, category=None):
             value="Entfernt den Timeout eines Benutzers",
             inline=False
         )
-        embed.set_footer(text="Mehr Befehle kommen bald!")
+        embed.set_footer(text="⚠️ Diese Befehle erfordern Administrator-Rechte!")
         await ctx.send(embed=embed)
     
     else:
