@@ -3,7 +3,7 @@ from discord.ext import commands
 import random
 import asyncio
 from datetime import datetime, timedelta
-import os  # Für Umgebungsvariablen
+import os  # Umgebungsvariablen
 
 bot = commands.Bot(command_prefix="!", intents=discord.Intents.all())
 
@@ -87,11 +87,6 @@ async def beg(ctx):
 async def pay(ctx, member: discord.Member, amount: int):
     sender = ctx.author.id
     receiver = member.id
-    
-    # Validierung des Betrags
-    if amount <= 0:
-        await ctx.send("❌ Der Betrag muss positiv sein!")
-        return
     
     if sender not in economy_data or economy_data[sender]["balance"] < amount:
         await ctx.send("❌ Du hast nicht genug Coins!")
