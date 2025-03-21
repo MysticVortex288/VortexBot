@@ -13,18 +13,17 @@ intents = discord.Intents.all()
 intents.members = True
 intents.message_content = True
 
-bot = commands.Bot(command_prefix='!', intents=intents, help_command=None)
+class CustomBot(commands.Bot):
+    async def setup_hook(self):
+        await self.tree.sync()
+
+bot = CustomBot(command_prefix='!', intents=intents, help_command=None)
 
 # Event: Bot ist bereit
 @bot.event
 async def on_ready():
     bot.start_time = datetime.datetime.utcnow()
     print(f'Bot ist online als {bot.user}')
-    try:
-        synced = await bot.tree.sync()
-        print(f'Slash Commands synchronisiert: {len(synced)} Befehle')
-    except Exception as e:
-        print(f'Fehler beim Synchronisieren der Befehle: {e}')
 
 # Funktion für Moderations-Embed
 def create_mod_embed(action, user, moderator, reason, duration=None):
@@ -322,8 +321,8 @@ async def online_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
         await ctx.send("❌ Du brauchst Administrator-Rechte um diesen Befehl zu nutzen!")
 
-@bot.command()
-async def help(ctx, category=None):
+@bot.command(name='help')
+async def help_command(ctx, category=None):
     if category is None:
         # Hauptmenü
         embed = discord.Embed(
