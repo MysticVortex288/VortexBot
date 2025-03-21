@@ -279,73 +279,6 @@ async def untimeout_user(ctx, member: discord.Member, reason=None):
     except:
         pass
 
-class HelpCommand(commands.HelpCommand):
-    async def send_bot_help(self, mapping):
-        embed = discord.Embed(
-            title="🤖 Bot Hilfe",
-            description="Hier sind die verfügbaren Kategorien:\n\n"
-                      "• `!help moderation` - Moderations- und Statusbefehle\n\n"
-                      "Weitere Kategorien kommen bald!",
-            color=discord.Color.blue()
-        )
-        embed.set_footer(text="Benutze !help <kategorie> für mehr Details")
-        await self.context.send(embed=embed)
-
-    async def send_cog_help(self, cog):
-        pass
-
-    async def send_group_help(self, group):
-        pass
-
-    async def send_command_help(self, command):
-        pass
-
-bot.help_command = HelpCommand()
-
-@bot.command(name='help')
-async def help_command(ctx, category: str = None):
-    if category is None:
-        await bot.help_command.send_bot_help(None)
-        return
-    
-    if category.lower() == "moderation":
-        embed = discord.Embed(
-            title="🛡️ Moderations- und Statusbefehle",
-            description="**Diese Befehle können nur von Administratoren verwendet werden!**\n\n"
-                       "Hier sind alle verfügbaren Befehle:",
-            color=discord.Color.green()
-        )
-        embed.add_field(
-            name="!online",
-            value="Zeigt detaillierte Statusinformationen des Bots",
-            inline=False
-        )
-        embed.add_field(
-            name="!kick @user [grund]",
-            value="Kickt einen Benutzer vom Server",
-            inline=False
-        )
-        embed.add_field(
-            name="!ban @user [grund]",
-            value="Bannt einen Benutzer vom Server",
-            inline=False
-        )
-        embed.add_field(
-            name="!timeout @user [dauer] [grund]",
-            value="Timeout für einen Benutzer (Standard: 5 Minuten)",
-            inline=False
-        )
-        embed.add_field(
-            name="!untimeout @user",
-            value="Entfernt den Timeout eines Benutzers",
-            inline=False
-        )
-        embed.set_footer(text="⚠️ Diese Befehle erfordern Administrator-Rechte!")
-        await ctx.send(embed=embed)
-        return
-    
-    await ctx.send(f"❌ Die Kategorie `{category}` wurde nicht gefunden. Benutze `!help` für eine Liste aller Kategorien.")
-
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def online(ctx):
@@ -391,6 +324,60 @@ async def online(ctx):
 async def online_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
         await ctx.send("❌ Du brauchst Administrator-Rechte um diesen Befehl zu nutzen!")
+
+@bot.command()
+async def help(ctx, category: str = None):
+    if category is None:
+        # Hauptmenü
+        embed = discord.Embed(
+            title="🤖 Bot Hilfe",
+            description="Hier sind die verfügbaren Kategorien:\n\n"
+                      "• `!help moderation` - Moderations- und Statusbefehle\n\n"
+                      "Weitere Kategorien kommen bald!",
+            color=discord.Color.blue()
+        )
+        embed.set_footer(text="Benutze !help <kategorie> für mehr Details")
+        await ctx.send(embed=embed)
+        return
+    
+    if category.lower() == "moderation":
+        # Moderations-Hilfe
+        embed = discord.Embed(
+            title="🛡️ Moderations- und Statusbefehle",
+            description="**Diese Befehle können nur von Administratoren verwendet werden!**\n\n"
+                       "Hier sind alle verfügbaren Befehle:",
+            color=discord.Color.green()
+        )
+        embed.add_field(
+            name="!online",
+            value="Zeigt detaillierte Statusinformationen des Bots",
+            inline=False
+        )
+        embed.add_field(
+            name="!kick @user [grund]",
+            value="Kickt einen Benutzer vom Server",
+            inline=False
+        )
+        embed.add_field(
+            name="!ban @user [grund]",
+            value="Bannt einen Benutzer vom Server",
+            inline=False
+        )
+        embed.add_field(
+            name="!timeout @user [dauer] [grund]",
+            value="Timeout für einen Benutzer (Standard: 5 Minuten)",
+            inline=False
+        )
+        embed.add_field(
+            name="!untimeout @user",
+            value="Entfernt den Timeout eines Benutzers",
+            inline=False
+        )
+        embed.set_footer(text="⚠️ Diese Befehle erfordern Administrator-Rechte!")
+        await ctx.send(embed=embed)
+        return
+    
+    await ctx.send(f"❌ Die Kategorie `{category}` wurde nicht gefunden. Benutze `!help` für eine Liste aller Kategorien.")
 
 # Wenn die Datei direkt ausgeführt wird
 if __name__ == "__main__":
