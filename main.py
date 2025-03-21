@@ -282,6 +282,7 @@ def run_bot():
     bot.run(os.getenv('DISCORD_TOKEN'))
 
 if __name__ == "__main__":
+    # Starte den Bot in einem Thread
     bot_thread = threading.Thread(target=run_bot)
     bot_thread.start()
     
