@@ -160,4 +160,3 @@ async def help(ctx, category: str = None):
 # Wenn die Datei direkt ausgeführt wird
 if __name__ == "__main__":
     bot.run(os.getenv('DISCORD_TOKEN'))
-
