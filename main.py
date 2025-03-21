@@ -275,6 +275,53 @@ async def untimeout_user(ctx, member: discord.Member, reason=None):
     except:
         pass
 
+@bot.command()
+async def help(ctx, category=None):
+    if category is None:
+        # Hauptmenü
+        embed = discord.Embed(
+            title="🤖 Bot Hilfe",
+            description="Hier sind die verfügbaren Kategorien:\n\n"
+                      "• `!help moderation` - Moderationsbefehle\n\n"
+                      "Weitere Kategorien kommen bald!",
+            color=discord.Color.blue()
+        )
+        embed.set_footer(text="Benutze !help <kategorie> für mehr Details")
+        await ctx.send(embed=embed)
+    
+    elif category.lower() == "moderation":
+        # Moderations-Hilfe
+        embed = discord.Embed(
+            title="🛡️ Moderationsbefehle",
+            description="Hier sind alle verfügbaren Moderationsbefehle:",
+            color=discord.Color.green()
+        )
+        embed.add_field(
+            name="!kick @user [grund]",
+            value="Kickt einen Benutzer vom Server",
+            inline=False
+        )
+        embed.add_field(
+            name="!ban @user [grund]",
+            value="Bannt einen Benutzer vom Server",
+            inline=False
+        )
+        embed.add_field(
+            name="!timeout @user [dauer] [grund]",
+            value="Timeout für einen Benutzer (Standard: 5 Minuten)",
+            inline=False
+        )
+        embed.add_field(
+            name="!untimeout @user",
+            value="Entfernt den Timeout eines Benutzers",
+            inline=False
+        )
+        embed.set_footer(text="Mehr Befehle kommen bald!")
+        await ctx.send(embed=embed)
+    
+    else:
+        await ctx.send(f"❌ Die Kategorie `{category}` wurde nicht gefunden. Benutze `!help` für eine Liste aller Kategorien.")
+
 # Wenn die Datei direkt ausgeführt wird
 if __name__ == "__main__":
     bot.run(os.getenv('DISCORD_TOKEN'))
