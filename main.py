@@ -4,8 +4,6 @@ from discord import app_commands
 import datetime
 import os
 from dotenv import load_dotenv
-import threading
-from webserver import app
 
 # Lade Umgebungsvariablen
 load_dotenv()
@@ -277,15 +275,6 @@ async def untimeout_user(ctx, member: discord.Member, reason=None):
     except:
         pass
 
-# Starte den Bot
-def run_bot():
-    bot.run(os.getenv('DISCORD_TOKEN'))
-
+# Wenn die Datei direkt ausgeführt wird
 if __name__ == "__main__":
-    # Starte den Bot in einem Thread
-    bot_thread = threading.Thread(target=run_bot)
-    bot_thread.start()
-    
-    # Starte den Webserver
-    port = int(os.getenv("PORT", 8080))
-    app.run(host='0.0.0.0', port=port)
+    bot.run(os.getenv('DISCORD_TOKEN'))
