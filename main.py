@@ -1,134 +1,135 @@
 import discord
 from discord.ext import commands
-from discord import app_commands
-import datetime
-import os
 import random
-from dotenv import load_dotenv
+import asyncio
+from datetime import datetime, timedelta
 
-# Lade Umgebungsvariablen
-load_dotenv()
+bot = commands.Bot(command_prefix="!", intents=discord.Intents.all())
 
-# Bot-Konfiguration
-intents = discord.Intents.all()
-intents.members = True
-intents.message_content = True
+# Datenbank für das Economy-System (Speicherung in einem Dictionary)
+economy_data = {}
 
-class CustomBot(commands.Bot):
-    def __init__(self):
-        super().__init__(command_prefix='!', intents=intents, help_command=None)
-        self.start_time = None
-        self.economy = {}
-
-    async def setup_hook(self):
-        await self.tree.sync()
-
-bot = CustomBot()
-
-# Economy-Befehle
-@bot.command(name="daily")
+# Täglicher Bonus
+@bot.command()
 async def daily(ctx):
     user = ctx.author.id
-    now = datetime.datetime.utcnow()
-    last_claim = bot.economy.get(user, {}).get("daily", datetime.datetime.min)
-    if (now - last_claim).total_seconds() < 86400:
-        await ctx.send("❌ Du kannst dein tägliches Geld erst morgen wieder beanspruchen!")
-        return
+    now = datetime.utcnow()
+    
+    if user in economy_data and "last_daily" in economy_data[user]:
+        last_claim = economy_data[user]["last_daily"]
+        if now - last_claim < timedelta(days=1):
+            await ctx.send("❌ Du kannst dein tägliches Einkommen erst morgen wieder beanspruchen!")
+            return
+    
     amount = random.randint(100, 500)
-    bot.economy.setdefault(user, {}).update({"balance": bot.economy.get(user, {}).get("balance", 0) + amount, "daily": now})
-    await ctx.send(f"💰 Du hast {amount} Münzen erhalten!")
+    economy_data.setdefault(user, {"balance": 0})
+    economy_data[user]["balance"] += amount
+    economy_data[user]["last_daily"] = now
+    
+    embed = discord.Embed(
+        title="💰 Täglicher Bonus",
+        description=f"Du hast {amount} Coins erhalten! Komm morgen wieder für mehr!",
+        color=discord.Color.gold()
+    )
+    embed.set_footer(text="Benutze !balance, um dein Guthaben zu sehen.")
+    await ctx.send(embed=embed)
 
-@bot.command(name="work")
+# Arbeiten für Geld
+@bot.command()
 async def work(ctx):
     user = ctx.author.id
-    now = datetime.datetime.utcnow()
-    last_work = bot.economy.get(user, {}).get("work", datetime.datetime.min)
-    if (now - last_work).total_seconds() < 14400:
-        await ctx.send("❌ Du kannst erst in 4 Stunden wieder arbeiten!")
-        return
+    now = datetime.utcnow()
+    
+    if user in economy_data and "last_work" in economy_data[user]:
+        last_work = economy_data[user]["last_work"]
+        if now - last_work < timedelta(hours=4):
+            await ctx.send("❌ Du kannst nur alle 4 Stunden arbeiten!")
+            return
+    
     amount = random.randint(50, 300)
-    bot.economy.setdefault(user, {}).update({"balance": bot.economy.get(user, {}).get("balance", 0) + amount, "work": now})
-    await ctx.send(f"💼 Du hast {amount} Münzen verdient!")
+    jobs = ["Programmierer", "Bäcker", "Streamer", "Bauarbeiter", "Arzt"]
+    job = random.choice(jobs)
+    economy_data.setdefault(user, {"balance": 0})
+    economy_data[user]["balance"] += amount
+    economy_data[user]["last_work"] = now
+    
+    embed = discord.Embed(
+        title="🔨 Arbeit",
+        description=f"Du hast als **{job}** gearbeitet und {amount} Coins verdient!",
+        color=discord.Color.green()
+    )
+    embed.set_footer(text="Benutze !balance, um dein Guthaben zu sehen.")
+    await ctx.send(embed=embed)
 
-@bot.command(name="beg")
+# Betteln um Geld
+@bot.command()
 async def beg(ctx):
     user = ctx.author.id
-    if random.random() < 0.15:
-        await ctx.send("❌ Niemand wollte dir Geld geben!")
-        return
-    amount = random.randint(10, 100)
-    bot.economy.setdefault(user, {}).update({"balance": bot.economy.get(user, {}).get("balance", 0) + amount})
-    await ctx.send(f"🪙 Jemand war großzügig und gab dir {amount} Münzen!")
+    amount = random.choice([random.randint(10, 50), 0])
+    
+    if amount == 0:
+        message = "Niemand wollte dir Geld geben. 😢"
+    else:
+        economy_data.setdefault(user, {"balance": 0})
+        economy_data[user]["balance"] += amount
+        message = f"Jemand hat dir {amount} Coins gegeben! 🎉"
+    
+    embed = discord.Embed(
+        title="🙏 Betteln",
+        description=message,
+        color=discord.Color.blue()
+    )
+    await ctx.send(embed=embed)
 
-@bot.command(name="pay")
+# Geld überweisen
+@bot.command()
 async def pay(ctx, member: discord.Member, amount: int):
-    if amount <= 0:
-        await ctx.send("❌ Du kannst kein negatives oder null Münzen überweisen!")
+    sender = ctx.author.id
+    receiver = member.id
+    
+    if sender not in economy_data or economy_data[sender]["balance"] < amount:
+        await ctx.send("❌ Du hast nicht genug Coins!")
         return
-    user = ctx.author.id
-    if bot.economy.get(user, {}).get("balance", 0) < amount:
-        await ctx.send("❌ Du hast nicht genug Münzen!")
-        return
-    bot.economy[user]["balance"] -= amount
-    bot.economy.setdefault(member.id, {}).update({"balance": bot.economy.get(member.id, {}).get("balance", 0) + amount})
-    await ctx.send(f"✅ Du hast {amount} Münzen an {member.mention} überwiesen!")
+    
+    economy_data[sender]["balance"] -= amount
+    economy_data.setdefault(receiver, {"balance": 0})
+    economy_data[receiver]["balance"] += amount
+    
+    embed = discord.Embed(
+        title="💸 Geldüberweisung",
+        description=f"Du hast {amount} Coins an {member.mention} überwiesen!",
+        color=discord.Color.purple()
+    )
+    await ctx.send(embed=embed)
 
-@bot.command(name="leaderboard")
+# Bestenliste
+@bot.command()
 async def leaderboard(ctx):
-    sorted_users = sorted(bot.economy.items(), key=lambda x: x[1].get("balance", 0), reverse=True)[:10]
-    embed = discord.Embed(title="🏆 Leaderboard", color=discord.Color.gold())
-    for i, (user_id, data) in enumerate(sorted_users, 1):
-        member = ctx.guild.get_member(user_id)
-        name = member.name if member else "Unbekannt"
-        embed.add_field(name=f"#{i} {name}", value=f"💰 {data.get('balance', 0)} Münzen", inline=False)
+    sorted_users = sorted(economy_data.items(), key=lambda x: x[1]["balance"], reverse=True)
+    
+    embed = discord.Embed(
+        title="🏆 Leaderboard",
+        color=discord.Color.orange()
+    )
+    
+    for i, (user_id, data) in enumerate(sorted_users[:10], start=1):
+        user = await bot.fetch_user(user_id)
+        embed.add_field(name=f"#{i} {user.name}", value=f"💰 {data['balance']} Coins", inline=False)
+    
     await ctx.send(embed=embed)
 
-# Hilfe-Befehl aktualisieren
+# Guthaben anzeigen
 @bot.command()
-async def help(ctx, category: str = None):
-    if category is None:
-        embed = discord.Embed(
-            title="🤖 Bot Hilfe",
-            description="Hier sind die verfügbaren Kategorien:\n\n"
-                        "• `!help moderation` - Moderations- und Statusbefehle\n"
-                        "• `!help economy` - Wirtschaftsbefehle\n",
-            color=discord.Color.blue()
-        )
-        embed.set_footer(text="Benutze !help <kategorie> für mehr Details")
-        await ctx.send(embed=embed)
-        return
+async def balance(ctx):
+    user = ctx.author.id
+    balance = economy_data.get(user, {}).get("balance", 0)
     
-    if category.lower() == "economy":
-        embed = discord.Embed(
-            title="💰 Economy-Befehle",
-            description="Hier sind alle verfügbaren Wirtschafts-Befehle:",
-            color=discord.Color.green()
-        )
-        embed.add_field(name="!daily", value="Erhalte täglich eine zufällige Menge Münzen", inline=False)
-        embed.add_field(name="!work", value="Arbeite und verdiene Geld (alle 4 Stunden)", inline=False)
-        embed.add_field(name="!beg", value="Bettle um etwas Geld (15% Chance, nichts zu bekommen)", inline=False)
-        embed.add_field(name="!pay @user <betrag>", value="Überweise Münzen an einen anderen Spieler", inline=False)
-        embed.add_field(name="!leaderboard", value="Zeigt die reichsten Spieler an", inline=False)
-        await ctx.send(embed=embed)
-        return
-    
-    await ctx.send(f"❌ Die Kategorie `{category}` wurde nicht gefunden. Benutze `!help` für eine Liste aller Kategorien.")
-
-# Online-Befehl reparieren
-@bot.command()
-@commands.has_permissions(administrator=True)
-async def online(ctx):
-    uptime = datetime.datetime.utcnow() - bot.start_time
-    hours, remainder = divmod(uptime.seconds, 3600)
-    minutes, seconds = divmod(remainder, 60)
-
-    embed = discord.Embed(title="🟢 Bot Status", color=discord.Color.green())
-    embed.add_field(name="Status", value="Online und bereit!", inline=False)
-    embed.add_field(name="Latenz", value=f"🏓 {round(bot.latency * 1000)}ms", inline=True)
-    embed.add_field(name="Uptime", value=f"⏰ {uptime.days}d {hours}h {minutes}m {seconds}s", inline=True)
-    embed.add_field(name="Server", value=f"🌐 {len(bot.guilds)} Server", inline=True)
-    embed.set_footer(text=f"Bot Version: 1.0 • Gestartet am {bot.start_time.strftime('%d.%m.%Y um %H:%M:%S')}")
+    embed = discord.Embed(
+        title="💳 Kontostand",
+        description=f"Du hast **{balance}** Coins!",
+        color=discord.Color.blue()
+    )
     await ctx.send(embed=embed)
 
-if __name__ == "__main__":
-    bot.run(os.getenv('DISCORD_TOKEN'))
+# Starte den Bot
+bot.run("DEIN_DISCORD_TOKEN")
