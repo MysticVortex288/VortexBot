@@ -110,7 +110,12 @@ def get_coins(user_id: int) -> int:
         c = conn.cursor()
         c.execute('SELECT coins FROM economy WHERE user_id = ?', (user_id,))
         result = c.fetchone()
-        return result[0] if result else 0
+        if result is None:
+            # Erstelle neuen Account mit 500 Startcoins
+            c.execute('INSERT INTO economy (user_id, coins) VALUES (?, ?)', (user_id, 500))
+            conn.commit()
+            return 500
+        return result[0]
 
 def update_last_used(user_id: int, command: str):
     with sqlite3.connect(bot.db_path) as conn:
