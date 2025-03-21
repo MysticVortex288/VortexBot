@@ -14,16 +14,20 @@ intents.members = True
 intents.message_content = True
 
 class CustomBot(commands.Bot):
+    def __init__(self):
+        super().__init__(command_prefix='!', intents=intents, help_command=None)
+        self.start_time = None
+
     async def setup_hook(self):
         await self.tree.sync()
 
-bot = CustomBot(command_prefix='!', intents=intents, help_command=None)
+bot = CustomBot()
 
 # Event: Bot ist bereit
 @bot.event
 async def on_ready():
     bot.start_time = datetime.datetime.utcnow()
-    print(f'Bot ist online als {bot.user}')
+    print(f'{bot.user} ist online!')
 
 # Funktion für Moderations-Embed
 def create_mod_embed(action, user, moderator, reason, duration=None):
@@ -321,8 +325,8 @@ async def online_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
         await ctx.send("❌ Du brauchst Administrator-Rechte um diesen Befehl zu nutzen!")
 
-@bot.command(name='help')
-async def help_command(ctx, category=None):
+@bot.hybrid_command(name='help', with_app_command=True)
+async def help_command(ctx, category: str = None):
     if category is None:
         # Hauptmenü
         embed = discord.Embed(
@@ -333,9 +337,9 @@ async def help_command(ctx, category=None):
             color=discord.Color.blue()
         )
         embed.set_footer(text="Benutze !help <kategorie> für mehr Details")
-        await ctx.send(embed=embed)
+        return await ctx.send(embed=embed)
     
-    elif category.lower() == "moderation":
+    if category.lower() == "moderation":
         # Moderations-Hilfe
         embed = discord.Embed(
             title="🛡️ Moderations- und Statusbefehle",
@@ -369,10 +373,9 @@ async def help_command(ctx, category=None):
             inline=False
         )
         embed.set_footer(text="⚠️ Diese Befehle erfordern Administrator-Rechte!")
-        await ctx.send(embed=embed)
+        return await ctx.send(embed=embed)
     
-    else:
-        await ctx.send(f"❌ Die Kategorie `{category}` wurde nicht gefunden. Benutze `!help` für eine Liste aller Kategorien.")
+    return await ctx.send(f"❌ Die Kategorie `{category}` wurde nicht gefunden. Benutze `!help` für eine Liste aller Kategorien.")
 
 # Wenn die Datei direkt ausgeführt wird
 if __name__ == "__main__":
