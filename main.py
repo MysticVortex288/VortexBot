@@ -2007,6 +2007,98 @@ async def top(ctx):
     )
     await ctx.send(embed=embed)
 
+@bot.command()
+async def help(ctx, command: str = None):
+    if command:
+        # Hilfe für spezifischen Befehl
+        command = command.lower()
+        if command == "slots":
+            embed = discord.Embed(title="🎰 Slots - Hilfe", description=SLOTS_HELP, color=discord.Color.blue())
+        elif command == "roulette":
+            embed = discord.Embed(title="🎲 Roulette - Hilfe", description=ROULETTE_HELP, color=discord.Color.blue())
+        elif command == "dice":
+            embed = discord.Embed(title="🎲 Würfel - Hilfe", description=DICE_HELP, color=discord.Color.blue())
+        elif command == "scratch":
+            embed = discord.Embed(title="🎫 Rubbellos - Hilfe", description=SCRATCH_HELP, color=discord.Color.blue())
+        elif command == "race":
+            embed = discord.Embed(title="🏇 Pferderennen - Hilfe", description=RACE_HELP, color=discord.Color.blue())
+        elif command == "yahtzee":
+            embed = discord.Embed(title="🎲 Yahtzee - Hilfe", description=YAHTZEE_HELP, color=discord.Color.blue())
+        elif command == "coinflip":
+            embed = discord.Embed(title="🪙 Münzwurf - Hilfe", description=COINFLIP_HELP, color=discord.Color.blue())
+        elif command == "moderation":
+            embed = discord.Embed(
+                title="🛡️ Moderation - Hilfe",
+                description="**Moderations-Befehle:**\n\n"
+                          "• `!kick <user> [grund]` - Kickt einen User\n"
+                          "• `!ban <user> [grund]` - Bannt einen User\n"
+                          "• `!timeout <user> <minuten> [grund]` - Timeout für User\n"
+                          "• `!untimeout <user> [grund]` - Hebt Timeout auf\n"
+                          "• `!creatorroles` - Erstellt die Creator-Rollen\n\n"
+                          "**Hinweis:** Diese Befehle benötigen entsprechende Rechte!",
+                color=discord.Color.blue()
+            )
+        else:
+            embed = discord.Embed(
+                title="❓ Unbekannter Befehl",
+                description=f"Der Befehl `{command}` wurde nicht gefunden!\nNutze `!help` für eine Liste aller Befehle.",
+                color=discord.Color.red()
+            )
+    else:
+        # Allgemeine Hilfe
+        embed = discord.Embed(
+            title="🎮 Casino Bot - Hilfe",
+            description="Hier sind alle verfügbaren Befehle:",
+            color=discord.Color.blue()
+        )
+        
+        # Economy Commands
+        embed.add_field(
+            name="💰 Economy",
+            value="```\n"
+                  "!daily   - Tägliche Coins\n"
+                  "!work    - Arbeiten für Coins\n"
+                  "!beg     - Betteln für Coins\n"
+                  "!rob     - Andere Spieler ausrauben\n"
+                  "!balance - Zeigt dein Guthaben\n"
+                  "!top     - Zeigt die reichsten Spieler\n"
+                  "```",
+            inline=False
+        )
+        
+        # Casino Games
+        embed.add_field(
+            name="🎲 Casino Spiele",
+            value="```\n"
+                  "!slots    - Spielautomat\n"
+                  "!roulette - Roulette\n"
+                  "!coinflip - Münzwurf\n"
+                  "!dice     - Würfelspiel\n"
+                  "!scratch  - Rubbellos\n"
+                  "!race     - Pferderennen\n"
+                  "!yahtzee  - Würfelpoker\n"
+                  "```",
+            inline=False
+        )
+
+        # Moderation Commands
+        embed.add_field(
+            name="🛡️ Moderation",
+            value="```\n"
+                  "!kick        - Kickt einen User\n"
+                  "!ban         - Bannt einen User\n"
+                  "!timeout     - Timeout für User\n"
+                  "!untimeout   - Hebt Timeout auf\n"
+                  "!creatorroles- Erstellt Creator-Rollen\n"
+                  "```\n"
+                  "Nutze !help moderation für Details",
+            inline=False
+        )
+        
+        embed.set_footer(text="Nutze !help <befehl> für mehr Infos zu einem Befehl")
+    
+    await ctx.send(embed=embed)
+
 if __name__ == "__main__":
     keep_alive()  # Startet den Webserver für 24/7 Uptime
     bot.run(os.getenv('DISCORD_TOKEN'))
