@@ -233,13 +233,20 @@ async def help(ctx, category: str = None):
         elif category == "moderation":
             embed = discord.Embed(
                 title="🛡️ Moderation - Hilfe",
-                description="**Moderations-Befehle:**\n\n"
+                description="**Server-Moderation:**\n"
                           "• `!kick <user> [grund]` - Kickt einen User\n"
                           "• `!ban <user> [grund]` - Bannt einen User\n"
                           "• `!timeout <user> <minuten> [grund]` - Timeout für User\n"
-                          "• `!untimeout <user> [grund]` - Hebt Timeout auf\n"
-                          "• `!creatorroles` - Erstellt die Creator-Rollen\n\n"
-                          "**Hinweis:** Diese Befehle benötigen entsprechende Rechte!",
+                          "• `!untimeout <user> [grund]` - Hebt Timeout auf\n\n"
+                          "**Rollen & Events:**\n"
+                          "• `!creatorroles` - Erstellt die Creator-Rollen\n"
+                          "• `!setupwelcome` - Richtet Welcome/Goodbye System ein:\n"
+                          "  ↳ Erstellt #willkommen für Join-Nachrichten\n"
+                          "  ↳ Erstellt #aufwiedersehen für Leave-Nachrichten\n"
+                          "  ↳ Vergibt automatisch Member-Rolle\n"
+                          "  ↳ Zeigt schöne Nachrichten wenn User joinen/leaven\n"
+                          "  ↳ Zeigt bei Leaves wie lange der User da war\n\n"
+                          "**Hinweis:** Diese Befehle benötigen Admin-Rechte!",
                 color=discord.Color.blue()
             )
             embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1037834181517074443.webp?size=96&quality=lossless")
@@ -2167,6 +2174,72 @@ class RoleView(discord.ui.View):
 
 @bot.command()
 @commands.has_permissions(administrator=True)
+async def setupwelcome(ctx):
+    """Erstellt den Willkommens-Kanal und die Member-Rolle"""
+    
+    # Erstelle/Prüfe Member-Rolle
+    member_role = discord.utils.get(ctx.guild.roles, name="Member")
+    if not member_role:
+        member_role = await ctx.guild.create_role(
+            name="Member",
+            color=discord.Color.blue(),
+            mentionable=True,
+            reason="Rolle für Mitglieder"
+        )
+        role_created = "✅ Member-Rolle erstellt"
+    else:
+        role_created = "ℹ️ Member-Rolle existiert bereits"
+    
+    # Standard Channel-Berechtigungen
+    overwrites = {
+        ctx.guild.default_role: discord.PermissionOverwrite(
+            send_messages=False,
+            add_reactions=True
+        ),
+        ctx.guild.me: discord.PermissionOverwrite(
+            send_messages=True,
+            add_reactions=True
+        )
+    }
+    
+    # Erstelle/Prüfe Willkommens-Kanal
+    welcome_channel = discord.utils.get(ctx.guild.channels, name="willkommen")
+    if not welcome_channel:
+        welcome_channel = await ctx.guild.create_text_channel(
+            'willkommen',
+            overwrites=overwrites,
+            reason="Kanal für Willkommensnachrichten"
+        )
+        channel_created = "✅ Willkommens-Kanal erstellt"
+    else:
+        channel_created = "ℹ️ Willkommens-Kanal existiert bereits"
+    
+    # Erstelle/Prüfe Goodbye-Kanal
+    goodbye_channel = discord.utils.get(ctx.guild.channels, name="aufwiedersehen")
+    if not goodbye_channel:
+        goodbye_channel = await ctx.guild.create_text_channel(
+            'aufwiedersehen',
+            overwrites=overwrites,
+            reason="Kanal für Abschiedsnachrichten"
+        )
+        goodbye_created = "✅ Aufwiedersehen-Kanal erstellt"
+    else:
+        goodbye_created = "ℹ️ Aufwiedersehen-Kanal existiert bereits"
+    
+    # Sende Bestätigung
+    embed = discord.Embed(
+        title="🛠️ Willkommens-System Setup",
+        description=f"{role_created}\n{channel_created}\n{goodbye_created}\n\n"
+                   "**Das System ist jetzt aktiv:**\n"
+                   "• Neue Mitglieder bekommen automatisch die Member-Rolle\n"
+                   f"• Willkommensnachrichten erscheinen in {welcome_channel.mention}\n"
+                   f"• Abschiedsnachrichten erscheinen in {goodbye_channel.mention}",
+        color=discord.Color.green()
+    )
+    await ctx.send(embed=embed)
+
+@bot.command()
+@commands.has_permissions(administrator=True)
 async def creatorroles(ctx):
     """Erstellt alle Rollen für das Server-Setup und zeigt Auswahlmenüs"""
     
@@ -2199,21 +2272,13 @@ async def creatorroles(ctx):
     for category, roles in role_categories.items():
         for role_name, _, _ in roles:
             if not discord.utils.get(ctx.guild.roles, name=role_name):
-                try:
-                    await ctx.guild.create_role(
-                        name=role_name,
-                        mentionable=True
-                    )
-                except Exception as e:
-                    await ctx.send(
-                        embed=discord.Embed(
-                            title="❌ Fehler",
-                            description=f"Fehler beim Erstellen der Rolle {role_name}:\n{str(e)}",
-                            color=discord.Color.red()
-                        )
-                    )
-                    return
-
+                # Erstelle die Rolle wenn sie nicht existiert
+                member_role = await ctx.guild.create_role(
+                    name=role_name,
+                    mentionable=True,
+                    reason="Automatisch erstellte Rolle für neue Mitglieder"
+                )
+    
     # Sende Auswahlmenüs für jede Kategorie
     for category, roles in role_categories.items():
         embed = discord.Embed(
@@ -2298,8 +2363,8 @@ async def on_member_join(member):
     welcome_channel = discord.utils.get(member.guild.channels, name="willkommen")
     if welcome_channel:
         embed = discord.Embed(
-            title="👋 Willkommen!",
-            description=f"Herzlich Willkommen {member.mention} auf **{member.guild.name}**!\n"
+            title="👋 Neues Mitglied",
+            description=f"{member.mention} ist dem Server beigetreten!\n"
                       f"Du bist unser {len(member.guild.members)}. Mitglied!\n\n"
                       "• Dir wurde automatisch die Member-Rolle gegeben\n"
                       "• Nutze `!help` um alle Befehle zu sehen\n"
@@ -2307,58 +2372,41 @@ async def on_member_join(member):
             color=discord.Color.green()
         )
         embed.set_thumbnail(url=member.display_avatar.url)
+        embed.timestamp = datetime.datetime.now()
         await welcome_channel.send(embed=embed)
 
-@bot.command()
-@commands.has_permissions(administrator=True)
-async def setupwelcome(ctx):
-    """Erstellt den Willkommens-Kanal und die Member-Rolle"""
+@bot.event
+async def on_member_remove(member):
+    # Berechne wie lange der User auf dem Server war
+    joined_at = member.joined_at
+    now = datetime.datetime.now(datetime.timezone.utc)
+    time_on_server = now - joined_at
     
-    # Erstelle/Prüfe Member-Rolle
-    member_role = discord.utils.get(ctx.guild.roles, name="Member")
-    if not member_role:
-        member_role = await ctx.guild.create_role(
-            name="Member",
-            color=discord.Color.blue(),
-            mentionable=True,
-            reason="Rolle für Mitglieder"
+    # Formatiere die Zeit schön
+    days = time_on_server.days
+    hours, remainder = divmod(time_on_server.seconds, 3600)
+    minutes, _ = divmod(remainder, 60)
+    time_str = ""
+    if days > 0:
+        time_str += f"{days} {'Tag' if days == 1 else 'Tage'} "
+    if hours > 0:
+        time_str += f"{hours} {'Stunde' if hours == 1 else 'Stunden'} "
+    if minutes > 0:
+        time_str += f"{minutes} {'Minute' if minutes == 1 else 'Minuten'}"
+    
+    # Sende Goodbye-Nachricht
+    goodbye_channel = discord.utils.get(member.guild.channels, name="aufwiedersehen")
+    if goodbye_channel:
+        embed = discord.Embed(
+            title="👋 Auf Wiedersehen!",
+            description=f"**{member}** hat den Server verlassen.\n\n"
+                      f"War {time_str} auf dem Server\n"
+                      f"Beigetreten: {joined_at.strftime('%d.%m.%Y um %H:%M')} Uhr",
+            color=discord.Color.red()
         )
-        role_created = "✅ Member-Rolle erstellt"
-    else:
-        role_created = "ℹ️ Member-Rolle existiert bereits"
-    
-    # Erstelle/Prüfe Willkommens-Kanal
-    welcome_channel = discord.utils.get(ctx.guild.channels, name="willkommen")
-    if not welcome_channel:
-        overwrites = {
-            ctx.guild.default_role: discord.PermissionOverwrite(
-                send_messages=False,
-                add_reactions=True
-            ),
-            ctx.guild.me: discord.PermissionOverwrite(
-                send_messages=True,
-                add_reactions=True
-            )
-        }
-        welcome_channel = await ctx.guild.create_text_channel(
-            'willkommen',
-            overwrites=overwrites,
-            reason="Kanal für Willkommensnachrichten"
-        )
-        channel_created = "✅ Willkommens-Kanal erstellt"
-    else:
-        channel_created = "ℹ️ Willkommens-Kanal existiert bereits"
-    
-    # Sende Bestätigung
-    embed = discord.Embed(
-        title="🛠️ Willkommens-System Setup",
-        description=f"{role_created}\n{channel_created}\n\n"
-                   "**Das System ist jetzt aktiv:**\n"
-                   "• Neue Mitglieder bekommen automatisch die Member-Rolle\n"
-                   "• Willkommensnachrichten erscheinen im {welcome_channel.mention} Kanal",
-        color=discord.Color.green()
-    )
-    await ctx.send(embed=embed)
+        embed.set_thumbnail(url=member.display_avatar.url)
+        embed.timestamp = datetime.datetime.now()
+        await goodbye_channel.send(embed=embed)
 
 @bot.event
 async def on_message(message):
