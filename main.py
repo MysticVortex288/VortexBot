@@ -2459,6 +2459,11 @@ async def on_message(message):
                  (message.guild.id, message.channel.id))
     is_funki_channel = cursor.fetchone() is not None
 
+    # Überprüfe ob der Kanal ein Counting-Kanal ist
+    cursor.execute('SELECT channel_id, last_number, last_user_id FROM counting WHERE guild_id = ?', (message.guild.id,))
+    counting_result = cursor.fetchone()
+    is_counting_channel = counting_result and counting_result[0] == message.channel.id
+
     if is_funki_channel and not message.content.startswith('!'):
         # Generiere einen Witz basierend auf der Nachricht
         joke = generate_joke(message.content)
@@ -2473,14 +2478,8 @@ async def on_message(message):
         
         # Sende den Witz
         await message.channel.send(embed=embed)
-        return
-
-    # Prüfe/Überprüfe Counting-Kanal
-    cursor.execute('SELECT channel_id, last_number, last_user_id FROM counting WHERE guild_id = ?', (message.guild.id,))
-    result = cursor.fetchone()
-    
-    if result and result[0] == message.channel.id:
-        channel_id, last_number, last_user_id = result
+    elif is_counting_channel:
+        channel_id, last_number, last_user_id = counting_result
         
         # Versuche die Nachricht als Zahl zu interpretieren
         try:
@@ -2531,9 +2530,10 @@ async def on_message(message):
             pass
         
         conn.commit()
-    
-    # Verarbeite normale Befehle
-    await bot.process_commands(message)
+
+    # Verarbeite normale Befehle nur wenn es kein Spezial-Kanal ist
+    if not (is_funki_channel and not message.content.startswith('!')) and not is_counting_channel:
+        await bot.process_commands(message)
 
 def generate_joke(prompt: str) -> str:
     # Liste von Witz-Templates
