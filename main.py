@@ -1,4 +1,4 @@
-os
+import os
 import random
 import discord
 import sqlite3
@@ -62,6 +62,13 @@ CREATE TABLE IF NOT EXISTS counting (
     channel_id INTEGER,
     last_number INTEGER DEFAULT 0,
     last_user_id INTEGER DEFAULT 0
+)''')
+
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS funki_channels (
+    guild_id INTEGER,
+    channel_id INTEGER,
+    PRIMARY KEY (guild_id, channel_id)
 )''')
 
 conn.commit()
@@ -263,6 +270,19 @@ async def help(ctx, category: str = None):
                 color=discord.Color.blue()
             )
             embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1037834223187759154.webp?size=96&quality=lossless")
+        elif category == "ki":
+            embed = discord.Embed(
+                title="🤖 KI-Witze - Hilfe",
+                description="**KI-Befehle:**\n\n"
+                          "• `!setupfunki #kanal` - Richtet einen KI-Witz-Kanal ein\n\n"
+                          "**Verwendung:**\n"
+                          "1. Richte zuerst mit `!setupfunki #kanal` einen Kanal ein\n"
+                          "2. Schreibe dann einfach in diesem Kanal (ohne Prefix!)\n"
+                          "3. Die KI wird dir lustige Witze erzählen! 😄\n\n"
+                          "**Hinweis:** Dieser Befehl ist nur für Administratoren!",
+                color=discord.Color.purple()
+            )
+            embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1037834270235238410.webp?size=96&quality=lossless")
         else:
             embed = discord.Embed(
                 title="❓ Unbekannte Kategorie",
@@ -270,7 +290,8 @@ async def help(ctx, category: str = None):
                           "• `!help economy` - Economy-System\n"
                           "• `!help casino` - Casino-Spiele\n"
                           "• `!help moderation` - Server-Moderation\n"
-                          "• `!help counting` - Counting-System",
+                          "• `!help counting` - Counting-System\n"
+                          "• `!help ki` - KI-Witze System",
                 color=discord.Color.red()
             )
             embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1037834270235238410.webp?size=96&quality=lossless")
@@ -282,7 +303,8 @@ async def help(ctx, category: str = None):
                       "Wähle eine Kategorie für mehr Infos:\n\n"
                       "🎮 **Fun & Games**\n"
                       "• `!help casino` - Spannende Casino-Spiele\n"
-                      "• `!help counting` - Gemeinsam zählen\n\n"
+                      "• `!help counting` - Gemeinsam zählen\n"
+                      "• `!help ki` - Lustige KI-Witze\n\n"
                       "💰 **Economy**\n"
                       "• `!help economy` - Coins verdienen & ausgeben\n\n"
                       "🛡️ **Administration**\n"
@@ -363,6 +385,19 @@ async def help(ctx, category: str = None):
                 color=discord.Color.blue()
             )
             embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1037834223187759154.webp?size=96&quality=lossless")
+        elif category == "ki":
+            embed = discord.Embed(
+                title="🤖 KI-Witze - Hilfe",
+                description="**KI-Befehle:**\n\n"
+                          "• `!setupfunki #kanal` - Richtet einen KI-Witz-Kanal ein\n\n"
+                          "**Verwendung:**\n"
+                          "1. Richte zuerst mit `!setupfunki #kanal` einen Kanal ein\n"
+                          "2. Schreibe dann einfach in diesem Kanal (ohne Prefix!)\n"
+                          "3. Die KI wird dir lustige Witze erzählen! 😄\n\n"
+                          "**Hinweis:** Dieser Befehl ist nur für Administratoren!",
+                color=discord.Color.purple()
+            )
+            embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1037834270235238410.webp?size=96&quality=lossless")
         else:
             embed = discord.Embed(
                 title="❓ Unbekannte Kategorie",
@@ -370,7 +405,8 @@ async def help(ctx, category: str = None):
                           "• `!help economy` - Economy-System\n"
                           "• `!help casino` - Casino-Spiele\n"
                           "• `!help moderation` - Server-Moderation\n"
-                          "• `!help counting` - Counting-System",
+                          "• `!help counting` - Counting-System\n"
+                          "• `!help ki` - KI-Witze System",
                 color=discord.Color.red()
             )
             embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1037834270235238410.webp?size=96&quality=lossless")
@@ -382,7 +418,8 @@ async def help(ctx, category: str = None):
                       "Wähle eine Kategorie für mehr Infos:\n\n"
                       "🎮 **Fun & Games**\n"
                       "• `!help casino` - Spannende Casino-Spiele\n"
-                      "• `!help counting` - Gemeinsam zählen\n\n"
+                      "• `!help counting` - Gemeinsam zählen\n"
+                      "• `!help ki` - Lustige KI-Witze\n\n"
                       "💰 **Economy**\n"
                       "• `!help economy` - Coins verdienen & ausgeben\n\n"
                       "🛡️ **Administration**\n"
@@ -743,7 +780,7 @@ async def blackjack(ctx, bet: int = None):
         )
         await ctx.send(embed=embed)
         return
-
+    
     user_coins = get_coins(ctx.author.id)
     if user_coins < bet:
         embed = discord.Embed(
@@ -1374,7 +1411,7 @@ class CoinflipView(View):
         await interaction.response.edit_message(view=self)
 
         # Münzwurf Animation
-        result = random.choice(["Kopf", "Zahl"])
+        result = random.choice(['kopf', 'zahl'])
         embed = discord.Embed(title="🎰 Coinflip", color=discord.Color.gold())
         embed.add_field(name="Deine Wahl", value=choice)
         embed.add_field(name="Einsatz", value=f"{self.bet_amount} Coins")
@@ -1389,10 +1426,10 @@ class CoinflipView(View):
         if choice == result:
             winnings = self.bet_amount * 2
             update_coins(self.user_id, winnings)
-            embed.description = f"🎯 **{result}**!\n\n**Gewonnen!** Du bekommst {winnings} Coins!"
+            embed.description = f"🎯 **{result.upper()}**!\n\n**Gewonnen!** Du bekommst {winnings} Coins!"
             embed.color = discord.Color.green()
         else:
-            embed.description = f"🎯 **{result}**!\n\n**Verloren!**"
+            embed.description = f"🎯 **{result.upper()}**!\n\n**Verloren!**"
             embed.color = discord.Color.red()
 
         embed.add_field(name="Ergebnis", value=result, inline=False)
@@ -1928,22 +1965,37 @@ class YahtzeeView(View):
         # Prüfe Kombinationen
         if 5 in counts.values():  # Yahtzee
             return 50, "🎯 Yahtzee! (5 gleiche)"
-        elif 4 in counts.values():  # Vier gleiche
+        
+        # Vier gleiche
+        if 4 in counts.values():  
             return 30, "🎲 Vier gleiche!"
-        elif 3 in counts.values() and 2 in counts.values():  # Full House
+        
+        # Full House
+        if 3 in counts.values() and 2 in counts.values():  
             return 25, "🎲 Full House!"
-        elif (sorted_dice == [1,2,3,4,5] or 
-              sorted_dice == [2,3,4,5,6]):  # Große Straße
+        
+        # Große Straße
+        if (sorted_dice == [1,2,3,4,5] or 
+              sorted_dice == [2,3,4,5,6]):  
             return 30, "🎲 Große Straße!"
-        elif any(all(x in sorted_dice for x in seq) for seq in [
-            [1,2,3,4], [2,3,4,5], [3,4,5,6]]):  # Kleine Straße
-            return 20, "🎲 Kleine Straße!"
-        elif 3 in counts.values():  # Drei gleiche
+        
+        # Kleine Straße
+        for i in range(1, 4):
+            if all(x in sorted_dice for x in range(i, i+4)):  
+                return 20, "🎲 Kleine Straße!"
+        
+        # Drei gleiche
+        if 3 in counts.values():  
             return 15, "🎲 Drei gleiche!"
-        elif list(counts.values()).count(2) == 2:  # Zwei Paare
+        
+        # Zwei Paare
+        if list(counts.values()).count(2) == 2:  
             return 10, "🎲 Zwei Paare!"
-        elif 2 in counts.values():  # Ein Paar
+        
+        # Ein Paar
+        if 2 in counts.values():  
             return 5, "🎲 Ein Paar!"
+        
         return 0, "Keine Gewinnkombination"
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
@@ -2517,7 +2569,28 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    # Prüfe ob es ein Counting-Kanal ist
+    # Überprüfe ob der Kanal ein KI-Witz-Kanal ist
+    cursor.execute("SELECT 1 FROM funki_channels WHERE guild_id = ? AND channel_id = ?",
+                 (message.guild.id, message.channel.id))
+    is_funki_channel = cursor.fetchone() is not None
+
+    if is_funki_channel:
+        # Generiere einen Witz basierend auf der Nachricht
+        joke = generate_joke(message.content)
+        
+        # Erstelle ein schönes Embed
+        embed = discord.Embed(
+            title="🤖 Hier kommt ein Witz!",
+            description=joke,
+            color=discord.Color.purple()
+        )
+        embed.set_footer(text=f"Inspiriert von: {message.author.display_name}")
+        
+        # Sende den Witz
+        await message.channel.send(embed=embed)
+        return
+
+    # Prüfe/Überprüfe Counting-Kanal
     cursor.execute('SELECT channel_id, last_number, last_user_id FROM counting WHERE guild_id = ?', (message.guild.id,))
     result = cursor.fetchone()
     
@@ -2577,107 +2650,50 @@ async def on_message(message):
     # Verarbeite normale Befehle
     await bot.process_commands(message)
 
-@bot.command()
-@commands.has_permissions(kick_members=True)
-async def kick(ctx, member: discord.Member, *, reason: str = None):
-    # Überprüfe ob der Bot die nötigen Rechte hat
-    if not ctx.guild.me.guild_permissions.kick_members:
-        embed = discord.Embed(
-            title="❌ Fehlende Rechte",
-            description="Ich habe keine Berechtigung, Mitglieder zu kicken!",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed)
-        return
-
-    # Überprüfe ob der User sich selbst oder den Bot kicken will
-    if member == ctx.author or member == ctx.guild.me:
-        embed = discord.Embed(
-            title="❌ Ungültiges Ziel",
-            description="Du kannst dich nicht selbst oder den Bot kicken!",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed)
-        return
-
-    # Überprüfe ob der User die höchste Rolle des Ziels kicken kann
-    if member.top_role >= ctx.author.top_role and ctx.author != ctx.guild.owner:
-        embed = discord.Embed(
-            title="❌ Keine Berechtigung",
-            description="Du kannst keine Mitglieder kicken, die eine höhere oder gleiche Rolle haben!",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed)
-        return
-
-    try:
-        # Erstelle Embed für die Kick-Nachricht
-        embed = discord.Embed(
-            title="👢 Kick",
-            description=f"**{member}** wurde von **{ctx.author}** gekickt!",
-            color=discord.Color.orange(),
-            timestamp=datetime.datetime.now()
-        )
-        
-        if reason:
-            embed.add_field(name="Grund:", value=reason)
-        
-        # Sende eine DM an den gekickten User
-        try:
-            dm_embed = discord.Embed(
-                title="👢 Du wurdest gekickt!",
-                description=f"Du wurdest von **{ctx.guild.name}** gekickt.",
-                color=discord.Color.orange(),
-                timestamp=datetime.datetime.now()
-            )
-            if reason:
-                dm_embed.add_field(name="Grund:", value=reason)
-            await member.send(embed=dm_embed)
-        except:
-            embed.set_footer(text="Konnte keine DM an den User senden.")
-
-        # Kicke den User
-        await member.kick(reason=f"Gekickt von {ctx.author}: {reason if reason else 'Kein Grund angegeben'}")
-        await ctx.send(embed=embed)
-
-    except discord.Forbidden:
-        embed = discord.Embed(
-            title="❌ Fehler",
-            description="Ich konnte den User nicht kicken. Möglicherweise hat er eine höhere Rolle als ich.",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed)
-    except Exception as e:
-        embed = discord.Embed(
-            title="❌ Fehler",
-            description=f"Ein unerwarteter Fehler ist aufgetreten: {str(e)}",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed)
-
-@kick.error
-async def kick_error(ctx, error):
-    if isinstance(error, commands.MissingPermissions):
-        embed = discord.Embed(
-            title="❌ Fehlende Rechte",
-            description="Du hast keine Berechtigung, Mitglieder zu kicken!",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed)
-    elif isinstance(error, commands.MissingRequiredArgument):
-        embed = discord.Embed(
-            title="❌ Fehlendes Argument",
-            description="Bitte gib einen User an!\nVerwendung: `!kick @user [grund]`",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed)
-    elif isinstance(error, commands.MemberNotFound):
-        embed = discord.Embed(
-            title="❌ User nicht gefunden",
-            description="Der angegebene User wurde nicht gefunden!",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed)
+def generate_joke(prompt: str) -> str:
+    # Liste von Witz-Templates
+    templates = [
+        "Warum {action}? Weil {punchline}! 😄",
+        "Was sagt {subject} zu {object}? {punchline}! 🤣",
+        "Kommt {subject} in {location}. {punchline}! 😆",
+        "Was ist {color} und {action}? {punchline}! 😂",
+        "Treffen sich {subject} und {object}. {punchline}! 🤪",
+        "{subject} fragt: '{question}' Antwort: {punchline}! 😅"
+    ]
+    
+    # Witzige Wörter und Phrasen
+    subjects = ["ein Programmierer", "eine KI", "ein Bot", "ein Computer", "ein Pixel", "ein Bug"]
+    objects = ["dem Internet", "dem Server", "dem Code", "dem Bug", "dem Computer", "dem Bot"]
+    actions = ["tanzt ein Bit", "debuggt sich selbst", "kompiliert nicht", "lädt ewig", "crasht ständig", "hat einen Bluescreen"]
+    locations = ["den Server", "das Internet", "die Cloud", "das Datencenter", "die Konsole", "den Computer"]
+    colors = ["blau", "rot", "grün", "gelb", "pink", "lila"]
+    questions = ["Wo ist mein RAM?", "Warum läuft nichts?", "Wer hat den Code kaputt gemacht?", "Wo sind meine Daten?"]
+    punchlines = [
+        "es hat keine Bits mehr übrig",
+        "der Cache war voll",
+        "die Cloud war zu niedrig",
+        "das WLAN war im Urlaub",
+        "der Server macht Mittagspause",
+        "die Maus hat den Käse geklaut",
+        "das Internet hatte Schluckauf",
+        "der Router ist im Homeoffice"
+    ]
+    
+    # Wähle zufällig ein Template
+    template = random.choice(templates)
+    
+    # Ersetze die Platzhalter
+    joke = template.format(
+        subject=random.choice(subjects),
+        object=random.choice(objects),
+        action=random.choice(actions),
+        location=random.choice(locations),
+        color=random.choice(colors),
+        question=random.choice(questions),
+        punchline=random.choice(punchlines)
+    )
+    
+    return joke
 
 if __name__ == "__main__":
     keep_alive()  # Startet den Webserver für 24/7 Uptime
