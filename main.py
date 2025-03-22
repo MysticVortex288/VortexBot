@@ -1,4 +1,4 @@
-import os
+os
 import random
 import discord
 import sqlite3
@@ -200,6 +200,106 @@ Beispiel: `!coinflip 100 kopf`"""
 async def on_ready():
     print(f'🤖 Bot ist online als {bot.user.name}')
     await bot.change_presence(activity=discord.Game(name="!help | Dein Allrounder"))
+
+@bot.command(aliases=["hilfe", "commands", "befehle"])
+async def help(ctx, category: str = None):
+    if category:
+        # Hilfe für spezifische Kategorie
+        category = category.lower()
+        if category == "economy":
+            embed = discord.Embed(
+                title="💰 Economy - Hilfe",
+                description="**Economy-Befehle:**\n\n"
+                          "• `!daily` - Tägliche Coins abholen\n"
+                          "• `!work` - Arbeiten für Coins\n"
+                          "• `!beg` - Betteln für Coins\n"
+                          "• `!rob <user>` - Andere Spieler ausrauben\n"
+                          "• `!balance` - Zeigt dein Guthaben\n"
+                          "• `!top` - Zeigt die reichsten Spieler",
+                color=discord.Color.gold()
+            )
+            embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1037834042793287680.webp?size=96&quality=lossless")
+        elif category == "casino":
+            embed = discord.Embed(
+                title="🎲 Casino - Hilfe",
+                description="**Casino-Befehle:**\n\n"
+                          "• `!slots <einsatz>` - Spielautomat\n"
+                          "• `!roulette <einsatz> <wette>` - Roulette\n"
+                          "• `!coinflip <einsatz> <kopf/zahl>` - Münzwurf\n"
+                          "• `!dice <einsatz>` - Würfelspiel\n"
+                          "• `!scratch <einsatz>` - Rubbellos\n"
+                          "• `!race <einsatz> <pferd>` - Pferderennen\n"
+                          "• `!yahtzee <einsatz>` - Würfelpoker",
+                color=discord.Color.purple()
+            )
+            embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1037834098187153408.webp?size=96&quality=lossless")
+        elif category == "moderation":
+            embed = discord.Embed(
+                title="🛡️ Moderation - Hilfe",
+                description="**Server-Moderation:**\n"
+                          "• `!kick <user> [grund]` - Kickt einen User\n"
+                          "• `!ban <user> [grund]` - Bannt einen User\n"
+                          "• `!timeout <user> <minuten> [grund]` - Timeout für User\n"
+                          "• `!untimeout <user> [grund]` - Hebt Timeout auf\n\n"
+                          "**Rollen & Events:**\n"
+                          "• `!creatorroles` - Erstellt die Creator-Rollen\n"
+                          "• `!setupwelcome` - Richtet Welcome/Goodbye System ein:\n"
+                          "  ↳ Erstellt #willkommen für Join-Nachrichten\n"
+                          "  ↳ Erstellt #aufwiedersehen für Leave-Nachrichten\n"
+                          "  ↳ Vergibt automatisch Member-Rolle\n"
+                          "  ↳ Zeigt schöne Nachrichten wenn User joinen/leaven\n"
+                          "  ↳ Zeigt bei Leaves wie lange der User da war\n\n"
+                          "**Hinweis:** Diese Befehle benötigen Admin-Rechte!",
+                color=discord.Color.blue()
+            )
+            embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1037834181517074443.webp?size=96&quality=lossless")
+        elif category == "counting":
+            embed = discord.Embed(
+                title="🔢 Counting - Hilfe",
+                description="**Counting-Befehle:**\n\n"
+                          "• `!countingsetup #kanal` - Richtet einen Counting-Kanal ein\n"
+                          "• `!stopcounting` - Deaktiviert das Counting-System\n\n"
+                          "**Hinweis:** Diese Befehle sind nur für Administratoren!",
+                color=discord.Color.blue()
+            )
+            embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1037834223187759154.webp?size=96&quality=lossless")
+        else:
+            embed = discord.Embed(
+                title="❓ Unbekannte Kategorie",
+                description="**Verfügbare Kategorien:**\n\n"
+                          "• `!help economy` - Economy-System\n"
+                          "• `!help casino` - Casino-Spiele\n"
+                          "• `!help moderation` - Server-Moderation\n"
+                          "• `!help counting` - Counting-System",
+                color=discord.Color.red()
+            )
+            embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1037834270235238410.webp?size=96&quality=lossless")
+    else:
+        # Hauptmenü
+        embed = discord.Embed(
+            title="🤖 Dein Allrounder Bot",
+            description="**Ein Bot für alles!**\n\n"
+                      "Wähle eine Kategorie für mehr Infos:\n\n"
+                      "🎮 **Fun & Games**\n"
+                      "• `!help casino` - Spannende Casino-Spiele\n"
+                      "• `!help counting` - Gemeinsam zählen\n\n"
+                      "💰 **Economy**\n"
+                      "• `!help economy` - Coins verdienen & ausgeben\n\n"
+                      "🛡️ **Administration**\n"
+                      "• `!help moderation` - Server verwalten\n",
+            color=discord.Color.blue()
+        )
+        embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1037834270235238410.webp?size=96&quality=lossless")
+        embed.set_footer(text="Tipp: Nutze !hilfe oder !commands als Alternative zu !help")
+    
+    # Füge Autor und Zeitstempel zu allen Embeds hinzu
+    embed.set_author(
+        name=ctx.guild.name,
+        icon_url=ctx.guild.icon.url if ctx.guild.icon else None
+    )
+    embed.timestamp = datetime.datetime.now()
+    
+    await ctx.send(embed=embed)
 
 @bot.command(aliases=["hilfe", "commands", "befehle"])
 async def help(ctx, category: str = None):
@@ -2476,6 +2576,108 @@ async def on_message(message):
     
     # Verarbeite normale Befehle
     await bot.process_commands(message)
+
+@bot.command()
+@commands.has_permissions(kick_members=True)
+async def kick(ctx, member: discord.Member, *, reason: str = None):
+    # Überprüfe ob der Bot die nötigen Rechte hat
+    if not ctx.guild.me.guild_permissions.kick_members:
+        embed = discord.Embed(
+            title="❌ Fehlende Rechte",
+            description="Ich habe keine Berechtigung, Mitglieder zu kicken!",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
+        return
+
+    # Überprüfe ob der User sich selbst oder den Bot kicken will
+    if member == ctx.author or member == ctx.guild.me:
+        embed = discord.Embed(
+            title="❌ Ungültiges Ziel",
+            description="Du kannst dich nicht selbst oder den Bot kicken!",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
+        return
+
+    # Überprüfe ob der User die höchste Rolle des Ziels kicken kann
+    if member.top_role >= ctx.author.top_role and ctx.author != ctx.guild.owner:
+        embed = discord.Embed(
+            title="❌ Keine Berechtigung",
+            description="Du kannst keine Mitglieder kicken, die eine höhere oder gleiche Rolle haben!",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
+        return
+
+    try:
+        # Erstelle Embed für die Kick-Nachricht
+        embed = discord.Embed(
+            title="👢 Kick",
+            description=f"**{member}** wurde von **{ctx.author}** gekickt!",
+            color=discord.Color.orange(),
+            timestamp=datetime.datetime.now()
+        )
+        
+        if reason:
+            embed.add_field(name="Grund:", value=reason)
+        
+        # Sende eine DM an den gekickten User
+        try:
+            dm_embed = discord.Embed(
+                title="👢 Du wurdest gekickt!",
+                description=f"Du wurdest von **{ctx.guild.name}** gekickt.",
+                color=discord.Color.orange(),
+                timestamp=datetime.datetime.now()
+            )
+            if reason:
+                dm_embed.add_field(name="Grund:", value=reason)
+            await member.send(embed=dm_embed)
+        except:
+            embed.set_footer(text="Konnte keine DM an den User senden.")
+
+        # Kicke den User
+        await member.kick(reason=f"Gekickt von {ctx.author}: {reason if reason else 'Kein Grund angegeben'}")
+        await ctx.send(embed=embed)
+
+    except discord.Forbidden:
+        embed = discord.Embed(
+            title="❌ Fehler",
+            description="Ich konnte den User nicht kicken. Möglicherweise hat er eine höhere Rolle als ich.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
+    except Exception as e:
+        embed = discord.Embed(
+            title="❌ Fehler",
+            description=f"Ein unerwarteter Fehler ist aufgetreten: {str(e)}",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
+
+@kick.error
+async def kick_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        embed = discord.Embed(
+            title="❌ Fehlende Rechte",
+            description="Du hast keine Berechtigung, Mitglieder zu kicken!",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
+    elif isinstance(error, commands.MissingRequiredArgument):
+        embed = discord.Embed(
+            title="❌ Fehlendes Argument",
+            description="Bitte gib einen User an!\nVerwendung: `!kick @user [grund]`",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
+    elif isinstance(error, commands.MemberNotFound):
+        embed = discord.Embed(
+            title="❌ User nicht gefunden",
+            description="Der angegebene User wurde nicht gefunden!",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
 
 if __name__ == "__main__":
     keep_alive()  # Startet den Webserver für 24/7 Uptime
