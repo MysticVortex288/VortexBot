@@ -28,7 +28,7 @@ class HorseRace:
             "4": {"name": "Lucky", "emoji": "🐴", "position": 0, "speed": 0.9, "place": None},
             "5": {"name": "Rainbow", "emoji": "🦓", "position": 0, "speed": 0.8, "place": None}
         }
-        self.track_length = 30  # Längere Rennstrecke
+        self.track_length = 15  # Kürzere Rennstrecke
         self.running = False
         self.finished_horses = 0
         
@@ -49,7 +49,7 @@ class HorseRace:
                 continue
                 
             if random.random() < horse["speed"] * 0.3:
-                horse["position"] += 1
+                horse["position"] += random.randint(1, 3)
                 moved = True
                 
                 if horse["position"] >= self.track_length:
@@ -121,6 +121,12 @@ class CustomBot(commands.Bot):
                          horse_id TEXT,
                          amount INTEGER,
                          PRIMARY KEY (race_id, user_id))''')
+            # Erstelle Tabelle für Cooldowns
+            c.execute('''CREATE TABLE IF NOT EXISTS cooldowns
+                        (user_id INTEGER,
+                         command TEXT,
+                         last_used TEXT,
+                         PRIMARY KEY (user_id, command))''')
             conn.commit()
 
     async def setup_hook(self):
@@ -154,39 +160,48 @@ def get_coins(user_id: int) -> int:
             return 500
         return result[0]
 
-def update_last_used(user_id: int, command: str):
-    with sqlite3.connect(bot.db_path) as conn:
-        c = conn.cursor()
-        c.execute(f'UPDATE economy SET {command}_last_used = ? WHERE user_id = ?',
-                 (datetime.datetime.now().isoformat(), user_id))
-        conn.commit()
-
 def get_last_used(user_id: int, command: str) -> Optional[datetime.datetime]:
     with sqlite3.connect(bot.db_path) as conn:
         c = conn.cursor()
-        c.execute(f'SELECT {command}_last_used FROM economy WHERE user_id = ?', (user_id,))
+        c.execute('SELECT last_used FROM cooldowns WHERE user_id = ? AND command = ?', (user_id, command))
         result = c.fetchone()
         if result and result[0]:
             return datetime.datetime.fromisoformat(result[0])
         return None
 
+def update_last_used(user_id: int, command: str):
+    with sqlite3.connect(bot.db_path) as conn:
+        c = conn.cursor()
+        now = datetime.datetime.now().isoformat()
+        c.execute('''INSERT OR REPLACE INTO cooldowns (user_id, command, last_used)
+                    VALUES (?, ?, ?)''', (user_id, command, now))
+        conn.commit()
+
+def check_cooldown(user_id: int, command: str, cooldown_hours: int = 1) -> tuple[bool, int, int]:
+    last_used = get_last_used(user_id, command)
+    if not last_used:
+        return True, 0, 0
+    
+    now = datetime.datetime.now()
+    time_diff = now - last_used
+    cooldown = datetime.timedelta(hours=cooldown_hours)
+    
+    if time_diff < cooldown:
+        remaining = cooldown - time_diff
+        hours = int(remaining.total_seconds() // 3600)
+        minutes = int((remaining.total_seconds() % 3600) // 60)
+        return False, hours, minutes
+    
+    return True, 0, 0
+
 # Economy Commands
 @bot.command()
 async def daily(ctx):
     # Prüfe ob der Befehl heute schon benutzt wurde
-    last_used = get_last_used(ctx.author.id, "daily")
-    if last_used:
-        # Setze den Reset auf 1 Uhr nachts
-        next_reset = last_used.replace(hour=1, minute=0, second=0, microsecond=0)
-        if last_used.hour >= 1:
-            next_reset = next_reset + datetime.timedelta(days=1)
-        
-        if datetime.datetime.now() < next_reset:
-            time_left = next_reset - datetime.datetime.now()
-            hours = time_left.seconds // 3600
-            minutes = (time_left.seconds % 3600) // 60
-            await ctx.send(f"❌ Du kannst den Daily-Bonus erst wieder um 1 Uhr nachts abholen! (Noch {hours}h {minutes}m)")
-            return
+    can_use, hours, minutes = check_cooldown(ctx.author.id, "daily", 24)
+    if not can_use:
+        await ctx.send(f"❌ Du kannst den Daily-Bonus erst wieder in {hours}h {minutes}m abholen!")
+        return
 
     # Gib dem Benutzer Coins
     coins = random.randint(100, 1000)
@@ -197,13 +212,10 @@ async def daily(ctx):
 @bot.command()
 async def work(ctx):
     # Prüfe 1-Stunden-Cooldown
-    last_used = get_last_used(ctx.author.id, "work")
-    if last_used:
-        time_diff = datetime.datetime.now() - last_used
-        if time_diff.total_seconds() < 3600:  # 1 Stunde = 3600 Sekunden
-            minutes_left = 60 - (time_diff.total_seconds() // 60)
-            await ctx.send(f"❌ Du musst noch {int(minutes_left)} Minuten warten, bevor du wieder arbeiten kannst!")
-            return
+    can_use, hours, minutes = check_cooldown(ctx.author.id, "work", 1)
+    if not can_use:
+        await ctx.send(f"❌ Du musst noch {hours}h {minutes}m warten, bevor du wieder arbeiten kannst!")
+        return
 
     # Gib dem Benutzer Coins
     coins = random.randint(50, 200)
@@ -214,13 +226,10 @@ async def work(ctx):
 @bot.command()
 async def beg(ctx):
     # Prüfe 1-Stunden-Cooldown
-    last_used = get_last_used(ctx.author.id, "beg")
-    if last_used:
-        time_diff = datetime.datetime.now() - last_used
-        if time_diff.total_seconds() < 3600:  # 1 Stunde = 3600 Sekunden
-            minutes_left = 60 - (time_diff.total_seconds() // 60)
-            await ctx.send(f"❌ Du musst noch {int(minutes_left)} Minuten warten, bevor du wieder betteln kannst!")
-            return
+    can_use, hours, minutes = check_cooldown(ctx.author.id, "beg", 1)
+    if not can_use:
+        await ctx.send(f"❌ Du musst noch {hours}h {minutes}m warten, bevor du wieder betteln kannst!")
+        return
 
     # 50% Chance auf Erfolg
     if random.random() < 0.5:
@@ -239,13 +248,10 @@ async def rob(ctx, member: discord.Member):
         return
 
     # Prüfe 1-Stunden-Cooldown
-    last_used = get_last_used(ctx.author.id, "rob")
-    if last_used:
-        time_diff = datetime.datetime.now() - last_used
-        if time_diff.total_seconds() < 3600:  # 1 Stunde = 3600 Sekunden
-            minutes_left = 60 - (time_diff.total_seconds() // 60)
-            await ctx.send(f"❌ Du musst noch {int(minutes_left)} Minuten warten, bevor du wieder jemanden ausrauben kannst!")
-            return
+    can_use, hours, minutes = check_cooldown(ctx.author.id, "rob", 1)
+    if not can_use:
+        await ctx.send(f"❌ Du musst noch {hours}h {minutes}m warten, bevor du wieder jemanden ausrauben kannst!")
+        return
 
     victim_coins = get_coins(member.id)
     if victim_coins < 50:
@@ -1403,7 +1409,7 @@ async def horserace(ctx, bet_amount: int = None, horse_number: str = None):
                     await race_msg.edit(embed=embed)
                 else:
                     race_msg = await ctx.send(embed=embed)
-                await asyncio.sleep(1)
+                await asyncio.sleep(0.5)
 
         # Gewinner verkünden
         multiplier = {"1": 1.5, "2": 2.0, "3": 2.5, "4": 3.0, "5": 4.0}
