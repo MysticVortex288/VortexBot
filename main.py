@@ -1601,7 +1601,7 @@ class RouletteView(View):
         for item in self.children:
             item.disabled = True
         await interaction.response.defer()
-        
+
         # Animation
         await self.spin_animation()
         
@@ -2194,4 +2194,6 @@ async def yahtzee(ctx, bet_amount: int = None):
 
 # Wenn die Datei direkt ausgeführt wird
 if __name__ == "__main__":
+    from server import keep_alive
+    keep_alive()  # Startet den Webserver für 24/7 Uptime
     bot.run(os.getenv('DISCORD_TOKEN'))
