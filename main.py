@@ -5,6 +5,11 @@ import random
 import datetime
 import sqlite3
 from dotenv import load_dotenv
+from typing import Optional, List, Dict
+import asyncio
+from discord.ui import Button, View
+import time
+from discord import app_commands
 
 # Lade Umgebungsvariablen
 load_dotenv()
