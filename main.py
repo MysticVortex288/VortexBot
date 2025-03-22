@@ -29,7 +29,7 @@ def keep_alive():
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
-bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)  # Deaktiviere Standard-Help-Command
+bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
 
 # Datenbank Setup
 conn = sqlite3.connect('casino.db')
@@ -44,603 +44,249 @@ CREATE TABLE IF NOT EXISTS economy (
 ''')
 conn.commit()
 
-class CustomBot(commands.Bot):
-    def __init__(self):
-        super().__init__(command_prefix='!', intents=intents, help_command=None)
-        self.start_time = None
-        self.db_path = "economy.db"
-        self.setup_database()
-        self.horse_races: Dict[int, HorseRace] = {}  # Speichert aktive Rennen pro Channel
-
-    def setup_database(self):
-        with sqlite3.connect(self.db_path) as conn:
-            c = conn.cursor()
-            # Erstelle Tabelle für Benutzer-Konten
-            c.execute('''CREATE TABLE IF NOT EXISTS economy
-                        (user_id INTEGER PRIMARY KEY,
-                         coins INTEGER DEFAULT 0,
-                         daily_last_used TEXT,
-                         work_last_used TEXT,
-                         beg_last_used TEXT,
-                         rob_last_used TEXT)''')
-            # Erstelle Tabelle für Pferderennen-Wetten
-            c.execute('''CREATE TABLE IF NOT EXISTS horse_bets
-                        (race_id TEXT,
-                         user_id INTEGER,
-                         horse_id TEXT,
-                         amount INTEGER,
-                         PRIMARY KEY (race_id, user_id))''')
-            # Erstelle Tabelle für Cooldowns
-            c.execute('''CREATE TABLE IF NOT EXISTS cooldowns
-                        (user_id INTEGER,
-                         command TEXT,
-                         last_used TEXT,
-                         PRIMARY KEY (user_id, command))''')
-            conn.commit()
-
-    async def setup_hook(self):
-        await self.tree.sync()
-
-bot = CustomBot()
-
-# Economy Hilfsfunktionen
-def get_user_account(user_id: int) -> tuple:
-    with sqlite3.connect(bot.db_path) as conn:
-        c = conn.cursor()
-        c.execute('INSERT OR IGNORE INTO economy (user_id) VALUES (?)', (user_id,))
-        c.execute('SELECT * FROM economy WHERE user_id = ?', (user_id,))
-        return c.fetchone()
+# Hilfsfunktionen
+def get_coins(user_id: int) -> int:
+    cursor.execute("SELECT coins FROM economy WHERE user_id = ?", (user_id,))
+    result = cursor.fetchone()
+    if result is None:
+        cursor.execute("INSERT INTO economy (user_id, coins) VALUES (?, 0)", (user_id,))
+        conn.commit()
+        return 0
+    return result[0]
 
 def update_coins(user_id: int, amount: int):
-    with sqlite3.connect(bot.db_path) as conn:
-        c = conn.cursor()
-        c.execute('UPDATE economy SET coins = coins + ? WHERE user_id = ?', (amount, user_id))
-        conn.commit()
-
-def get_coins(user_id: int) -> int:
-    with sqlite3.connect(bot.db_path) as conn:
-        c = conn.cursor()
-        c.execute('SELECT coins FROM economy WHERE user_id = ?', (user_id,))
-        result = c.fetchone()
-        if result is None:
-            # Erstelle neuen Account mit 500 Startcoins
-            c.execute('INSERT INTO economy (user_id, coins) VALUES (?, ?)', (user_id, 500))
-            conn.commit()
-            return 500
-        return result[0]
+    current_coins = get_coins(user_id)
+    new_coins = max(0, current_coins + amount)  # Verhindere negative Coins
+    cursor.execute("INSERT OR REPLACE INTO economy (user_id, coins) VALUES (?, ?)", (user_id, new_coins))
+    conn.commit()
 
 def get_last_used(user_id: int, command: str) -> Optional[datetime.datetime]:
-    with sqlite3.connect(bot.db_path) as conn:
-        c = conn.cursor()
-        c.execute('SELECT last_used FROM cooldowns WHERE user_id = ? AND command = ?', (user_id, command))
-        result = c.fetchone()
-        if result and result[0]:
-            return datetime.datetime.fromisoformat(result[0])
-        return None
+    cursor.execute("SELECT last_used FROM cooldowns WHERE user_id = ? AND command = ?", (user_id, command))
+    result = cursor.fetchone()
+    if result:
+        return datetime.datetime.fromisoformat(result[0])
+    return None
 
 def update_last_used(user_id: int, command: str):
-    with sqlite3.connect(bot.db_path) as conn:
-        c = conn.cursor()
-        now = datetime.datetime.now().isoformat()
-        c.execute('''INSERT OR REPLACE INTO cooldowns (user_id, command, last_used)
-                    VALUES (?, ?, ?)''', (user_id, command, now))
-        conn.commit()
+    now = datetime.datetime.now().isoformat()
+    cursor.execute("""
+        INSERT OR REPLACE INTO cooldowns (user_id, command, last_used)
+        VALUES (?, ?, ?)
+    """, (user_id, command, now))
+    conn.commit()
 
-def check_cooldown(user_id: int, command: str, cooldown_hours: int = 1) -> tuple[bool, int, int]:
-    last_used = get_last_used(user_id, command)
-    if not last_used:
-        return True, 0, 0
-    
-    now = datetime.datetime.now()
-    time_diff = now - last_used
-    cooldown = datetime.timedelta(hours=cooldown_hours)
-    
-    if time_diff < cooldown:
-        remaining = cooldown - time_diff
-        hours = int(remaining.total_seconds() // 3600)
-        minutes = int((remaining.total_seconds() % 3600) // 60)
-        return False, hours, minutes
-    
-    return True, 0, 0
+# Globale Fehlermeldungen
+INSUFFICIENT_COINS = "❌ Du hast nicht genug Coins!"
+MINIMUM_BET = "❌ Der Mindesteinsatz ist {} Coins!"
+NOT_YOUR_GAME = "❌ Das ist nicht dein Spiel!"
+ALREADY_ROLLING = "❌ Die Würfel rollen bereits!"
+ALREADY_SPINNING = "❌ Das Rad dreht sich bereits!"
+NO_ROLLS_LEFT = "❌ Keine Würfe mehr übrig!"
+WAIT_FOR_ROLL = "❌ Warte bis die Würfel aufhören zu rollen!"
 
-# Economy Commands
-@bot.command()
-async def daily(ctx):
-    # Prüfe ob der Befehl heute schon benutzt wurde
-    can_use, hours, minutes = check_cooldown(ctx.author.id, "daily", 24)
-    if not can_use:
-        await ctx.send(f"❌ Du kannst den Daily-Bonus erst wieder in {hours}h {minutes}m abholen!")
-        return
+# Hilfe-Texte für Spiele
+SLOTS_HELP = """🎰 Drehe am Spielautomaten!
 
-    # Gib dem Benutzer Coins
-    coins = random.randint(100, 1000)
-    update_coins(ctx.author.id, coins)
-    update_last_used(ctx.author.id, "daily")
-    await ctx.send(f"💰 Du hast deinen täglichen Bonus von {coins} Coins erhalten!")
+**Gewinne:**
+💎 Diamant: 50x
+7️⃣ Sieben: 20x
+🍀 Kleeblatt: 10x
+⭐ Stern: 5x
+🔔 Glocke: 3x
+🍒 Kirsche: 2x
+🍋 Zitrone: 1.5x
 
-@bot.command()
-async def work(ctx):
-    # Prüfe 1-Stunden-Cooldown
-    can_use, hours, minutes = check_cooldown(ctx.author.id, "work", 1)
-    if not can_use:
-        await ctx.send(f"❌ Du musst noch {hours}h {minutes}m warten, bevor du wieder arbeiten kannst!")
-        return
+**Verwendung:**
+`!slots <einsatz>`
+Beispiel: `!slots 100`"""
 
-    # Gib dem Benutzer Coins
-    coins = random.randint(50, 200)
-    update_coins(ctx.author.id, coins)
-    update_last_used(ctx.author.id, "work")
-    await ctx.send(f"💼 Du hast {coins} Coins durch Arbeit verdient!")
+ROULETTE_HELP = """🎲 Setze auf eine Farbe oder Zahl!
 
-@bot.command()
-async def beg(ctx):
-    # Prüfe 1-Stunden-Cooldown
-    can_use, hours, minutes = check_cooldown(ctx.author.id, "beg", 1)
-    if not can_use:
-        await ctx.send(f"❌ Du musst noch {hours}h {minutes}m warten, bevor du wieder betteln kannst!")
-        return
+**Wetten & Gewinne:**
+🔴 Rot: 2x
+⚫ Schwarz: 2x
+🟢 Grün (0): 14x
+2️⃣ Gerade: 2x
+1️⃣ Ungerade: 2x
 
-    # 50% Chance auf Erfolg
-    if random.random() < 0.5:
-        coins = random.randint(1, 100)
-        update_coins(ctx.author.id, coins)
-        update_last_used(ctx.author.id, "beg")
-        await ctx.send(f"🙏 Jemand hat Mitleid mit dir und gibt dir {coins} Coins!")
-    else:
-        update_last_used(ctx.author.id, "beg")
-        await ctx.send("😔 Niemand wollte dir Coins geben...")
+**Verwendung:**
+`!roulette <einsatz>`
+Beispiel: `!roulette 100`"""
 
-@bot.command()
-async def rob(ctx, member: discord.Member):
-    if member.id == ctx.author.id:
-        await ctx.send("❌ Du kannst dich nicht selbst ausrauben!")
-        return
+DICE_HELP = """🎲 Wähle eine Zahl und würfle!
 
-    # Prüfe 1-Stunden-Cooldown
-    can_use, hours, minutes = check_cooldown(ctx.author.id, "rob", 1)
-    if not can_use:
-        await ctx.send(f"❌ Du musst noch {hours}h {minutes}m warten, bevor du wieder jemanden ausrauben kannst!")
-        return
+**Gewinne:**
+• Richtige Zahl: 6x Einsatz
+• Falsche Zahl: Verloren
 
-    victim_coins = get_coins(member.id)
-    if victim_coins < 50:
-        await ctx.send("❌ Diese Person hat zu wenig Coins zum Ausrauben!")
-        return
+**Verwendung:**
+`!dice <einsatz>`
+Beispiel: `!dice 100`"""
 
-    # 15% Chance auf Erfolg
-    if random.random() < 0.15:
-        stolen = random.randint(1, min(victim_coins, 1000))
-        update_coins(member.id, -stolen)
-        update_coins(ctx.author.id, stolen)
-        update_last_used(ctx.author.id, "rob")
-        await ctx.send(f"💰 Du hast {stolen} Coins von {member.name} gestohlen!")
-    else:
-        fine = random.randint(50, 200)
-        update_coins(ctx.author.id, -fine)
-        update_last_used(ctx.author.id, "rob")
-        await ctx.send(f"👮 Du wurdest erwischt und musst {fine} Coins Strafe zahlen!")
+SCRATCH_HELP = """🎫 Kaufe ein Rubbellos!
 
-@bot.command()
-async def pay(ctx, member: discord.Member, amount: int):
-    if member.id == ctx.author.id:
-        await ctx.send("❌ Du kannst dir nicht selbst Coins überweisen!")
-        return
-    
-    if amount <= 0:
-        await ctx.send("❌ Der Betrag muss positiv sein!")
-        return
-    
-    sender_coins = get_coins(ctx.author.id)
-    if sender_coins < amount:
-        await ctx.send("❌ Du hast nicht genug Coins!")
-        return
-    
-    update_coins(ctx.author.id, -amount)
-    update_coins(member.id, amount)
-    
-    embed = discord.Embed(
-        title="💸 Überweisung",
-        description=f"{ctx.author.mention} hat {member.mention} **{amount:,}** Coins überwiesen!",
-        color=discord.Color.green()
-    )
-    embed.set_footer(text="Vielen Dank für die Transaktion! 🙏")
-    await ctx.send(embed=embed)
+**Gewinne:**
+💎 Diamant: 50x
+7️⃣ Sieben: 20x
+🍀 Kleeblatt: 10x
+⭐ Stern: 5x
+🔔 Glocke: 3x
+🍒 Kirsche: 2x
+🍋 Zitrone: 1.5x
 
-@bot.command()
-async def leaderboard(ctx):
-    with sqlite3.connect(bot.db_path) as conn:
-        c = conn.cursor()
-        c.execute('SELECT user_id, coins FROM economy ORDER BY coins DESC LIMIT 10')
-        top_users = c.fetchall()
-    
-    if not top_users:
-        await ctx.send("❌ Keine Nutzer gefunden!")
-        return
-    
-    embed = discord.Embed(
-        title="🏆 Reichste Nutzer",
-        description="Die Top 10 reichsten Nutzer des Servers:",
-        color=discord.Color.gold()
-    )
-    
-    for i, (user_id, coins) in enumerate(top_users, 1):
-        member = ctx.guild.get_member(user_id)
-        name = member.name if member else f"Unbekannt ({user_id})"
-        medal = {1: "🥇", 2: "🥈", 3: "🥉"}.get(i, "👑")
-        embed.add_field(
-            name=f"{medal} Platz {i}",
-            value=f"{name}: **{coins:,}** Coins",
-            inline=False
-        )
-    
-    embed.set_footer(text="Werde auch du reich mit unseren Casino-Spielen! 🎰")
-    await ctx.send(embed=embed)
+**Verwendung:**
+`!scratch <einsatz>`
+Beispiel: `!scratch 100`"""
 
-# Event: Bot ist bereit
+RACE_HELP = """🏇 Wette auf ein Pferd!
+
+**Wetten:**
+• Pferd 1-3
+• Gewinn: 3x Einsatz
+
+**Verwendung:**
+`!race <einsatz> <pferd>`
+Beispiel: `!race 100 1`"""
+
+YAHTZEE_HELP = """🎲 Würfelpoker!
+
+**Gewinne:**
+🎯 Yahtzee (5 gleiche): 50x
+🎲 Vier gleiche: 30x
+🎲 Full House: 20x
+🎲 Große Straße: 15x
+🎲 Kleine Straße: 10x
+🎲 Drei gleiche: 5x
+🎲 Zwei Paare: 3x
+🎲 Ein Paar: 1.5x
+
+**Verwendung:**
+`!yahtzee <einsatz>`
+Beispiel: `!yahtzee 100`"""
+
+COINFLIP_HELP = """🪙 Wirf eine Münze!
+
+**Gewinne:**
+• Richtig: 2x Einsatz
+• Falsch: Verloren
+
+**Verwendung:**
+`!coinflip <einsatz> <kopf/zahl>`
+Beispiel: `!coinflip 100 kopf`"""
+
 @bot.event
 async def on_ready():
-    bot.start_time = datetime.datetime.utcnow()
-    print(f'{bot.user} ist online!')
-
-# Funktion für Moderations-Embed
-def create_mod_embed(action, user, moderator, reason, duration=None):
-    embed = discord.Embed(
-        title=f"🛠️ Moderation: {action}",
-        color=discord.Color.red(),
-        timestamp=datetime.datetime.now()
-    )
-    embed.add_field(name="Betroffener User", value=f"{user.mention} ({user.id})", inline=False)
-    embed.add_field(name="Moderator", value=f"{moderator.mention} ({moderator.id})", inline=False)
-    if duration:
-        embed.add_field(name="Dauer", value=duration, inline=False)
-    embed.add_field(name="Grund", value=reason or "Kein Grund angegeben", inline=False)
-    return embed
-
-# Kick Command (Prefix und Slash)
-@bot.command(name="kick")
-@commands.has_permissions(kick_members=True)
-async def kick_prefix(ctx, member: discord.Member, *, reason=None):
-    await kick_user(ctx, member, reason)
-
-@bot.tree.command(name="kick", description="Kickt einen User vom Server")
-@app_commands.describe(member="Der User, der gekickt werden soll", reason="Grund für den Kick")
-@app_commands.checks.has_permissions(kick_members=True)
-async def kick_slash(interaction: discord.Interaction, member: discord.Member, reason: str = None):
-    await kick_user(interaction, member, reason)
-
-async def kick_user(ctx, member: discord.Member, reason=None):
-    if isinstance(ctx, discord.Interaction):
-        author = ctx.user
-        await ctx.response.defer()
-    else:
-        author = ctx.author
-
-    # Erstelle Embeds
-    mod_embed = create_mod_embed("Kick", member, author, reason)
-    
-    # DM an den gekickten User
-    try:
-        user_embed = discord.Embed(
-            title="🚫 Du wurdest gekickt!",
-            description=f"Du wurdest von **{ctx.guild.name}** gekickt.",
-            color=discord.Color.red()
-        )
-        user_embed.add_field(name="Grund", value=reason or "Kein Grund angegeben")
-        await member.send(embed=user_embed)
-    except:
-        pass  # User hat DMs deaktiviert
-
-    # Kicke den User
-    await member.kick(reason=reason)
-
-    # Sende Bestätigung
-    if isinstance(ctx, discord.Interaction):
-        await ctx.followup.send(embed=mod_embed)
-    else:
-        await ctx.send(embed=mod_embed)
-
-    # DM an den Moderator
-    mod_dm_embed = discord.Embed(
-        title="🛠️ Moderation ausgeführt",
-        description=f"Deine Moderationsaktion wurde ausgeführt.",
-        color=discord.Color.green()
-    )
-    mod_dm_embed.add_field(name="Aktion", value="Kick", inline=True)
-    mod_dm_embed.add_field(name="User", value=f"{member} ({member.id})", inline=True)
-    try:
-        await author.send(embed=mod_dm_embed)
-    except:
-        pass  # Moderator hat DMs deaktiviert
-
-# Ban Command (Prefix und Slash)
-@bot.command(name="ban")
-@commands.has_permissions(ban_members=True)
-async def ban_prefix(ctx, member: discord.Member, *, reason=None):
-    await ban_user(ctx, member, reason)
-
-@bot.tree.command(name="ban", description="Bannt einen User vom Server")
-@app_commands.describe(member="Der User, der gebannt werden soll", reason="Grund für den Bann")
-@app_commands.checks.has_permissions(ban_members=True)
-async def ban_slash(interaction: discord.Interaction, member: discord.Member, reason: str = None):
-    await ban_user(interaction, member, reason)
-
-async def ban_user(ctx, member: discord.Member, reason=None):
-    if isinstance(ctx, discord.Interaction):
-        author = ctx.user
-        await ctx.response.defer()
-    else:
-        author = ctx.author
-
-    # Erstelle Embeds
-    mod_embed = create_mod_embed("Bann", member, author, reason)
-    
-    # DM an den gebannten User
-    try:
-        user_embed = discord.Embed(
-            title="🚫 Du wurdest gebannt!",
-            description=f"Du wurdest von **{ctx.guild.name}** gebannt.",
-            color=discord.Color.red()
-        )
-        user_embed.add_field(name="Grund", value=reason or "Kein Grund angegeben")
-        await member.send(embed=user_embed)
-    except:
-        pass
-
-    # Banne den User
-    await member.ban(reason=reason)
-
-    # Sende Bestätigung
-    if isinstance(ctx, discord.Interaction):
-        await ctx.followup.send(embed=mod_embed)
-    else:
-        await ctx.send(embed=mod_embed)
-
-    # DM an den Moderator
-    mod_dm_embed = discord.Embed(
-        title="🛠️ Moderation ausgeführt",
-        description=f"Deine Moderationsaktion wurde ausgeführt.",
-        color=discord.Color.green()
-    )
-    mod_dm_embed.add_field(name="Aktion", value="Bann", inline=True)
-    mod_dm_embed.add_field(name="User", value=f"{member} ({member.id})", inline=True)
-    try:
-        await author.send(embed=mod_dm_embed)
-    except:
-        pass
-
-# Timeout Command (Prefix und Slash)
-@bot.command(name="timeout")
-@commands.has_permissions(moderate_members=True)
-async def timeout_prefix(ctx, member: discord.Member, minutes: int, *, reason=None):
-    await timeout_user(ctx, member, minutes, reason)
-
-@bot.tree.command(name="timeout", description="Versetzt einen User in einen Timeout")
-@app_commands.describe(
-    member="Der User, der in Timeout gesetzt werden soll",
-    minutes="Dauer des Timeouts in Minuten",
-    reason="Grund für den Timeout"
-)
-@app_commands.checks.has_permissions(moderate_members=True)
-async def timeout_slash(interaction: discord.Interaction, member: discord.Member, minutes: int, reason: str = None):
-    await timeout_user(interaction, member, minutes, reason)
-
-async def timeout_user(ctx, member: discord.Member, minutes: int, reason=None):
-    if isinstance(ctx, discord.Interaction):
-        author = ctx.user
-        await ctx.response.defer()
-    else:
-        author = ctx.author
-
-    # Berechne Timeout-Dauer
-    duration = datetime.timedelta(minutes=minutes)
-    
-    # Erstelle Embeds
-    mod_embed = create_mod_embed("Timeout", member, author, reason, f"{minutes} Minuten")
-    
-    # DM an den User im Timeout
-    try:
-        user_embed = discord.Embed(
-            title="⏰ Du wurdest in Timeout versetzt!",
-            description=f"Du wurdest auf **{ctx.guild.name}** in Timeout versetzt.",
-            color=discord.Color.orange()
-        )
-        user_embed.add_field(name="Dauer", value=f"{minutes} Minuten", inline=True)
-        user_embed.add_field(name="Grund", value=reason or "Kein Grund angegeben", inline=True)
-        await member.send(embed=user_embed)
-    except:
-        pass
-
-    # Timeout den User
-    await member.timeout(duration, reason=reason)
-
-    # Sende Bestätigung
-    if isinstance(ctx, discord.Interaction):
-        await ctx.followup.send(embed=mod_embed)
-    else:
-        await ctx.send(embed=mod_embed)
-
-    # DM an den Moderator
-    mod_dm_embed = discord.Embed(
-        title="🛠️ Moderation ausgeführt",
-        description=f"Deine Moderationsaktion wurde ausgeführt.",
-        color=discord.Color.green()
-    )
-    mod_dm_embed.add_field(name="Aktion", value="Timeout", inline=True)
-    mod_dm_embed.add_field(name="User", value=f"{member} ({member.id})", inline=True)
-    mod_dm_embed.add_field(name="Dauer", value=f"{minutes} Minuten", inline=True)
-    try:
-        await author.send(embed=mod_dm_embed)
-    except:
-        pass
-
-# Untimeout Command (Prefix und Slash)
-@bot.command(name="untimeout")
-@commands.has_permissions(moderate_members=True)
-async def untimeout_prefix(ctx, member: discord.Member, *, reason=None):
-    await untimeout_user(ctx, member, reason)
-
-@bot.tree.command(name="untimeout", description="Hebt den Timeout eines Users auf")
-@app_commands.describe(
-    member="Der User, dessen Timeout aufgehoben werden soll",
-    reason="Grund für die Aufhebung"
-)
-@app_commands.checks.has_permissions(moderate_members=True)
-async def untimeout_slash(interaction: discord.Interaction, member: discord.Member, reason: str = None):
-    await untimeout_user(interaction, member, reason)
-
-async def untimeout_user(ctx, member: discord.Member, reason=None):
-    if isinstance(ctx, discord.Interaction):
-        author = ctx.user
-        await ctx.response.defer()
-    else:
-        author = ctx.author
-
-    # Erstelle Embeds
-    mod_embed = create_mod_embed("Timeout aufgehoben", member, author, reason)
-    
-    # DM an den User
-    try:
-        user_embed = discord.Embed(
-            title="⏰ Dein Timeout wurde aufgehoben!",
-            description=f"Dein Timeout auf **{ctx.guild.name}** wurde vorzeitig aufgehoben.",
-            color=discord.Color.green()
-        )
-        user_embed.add_field(name="Grund", value=reason or "Kein Grund angegeben")
-        await member.send(embed=user_embed)
-    except:
-        pass
-
-    # Hebe Timeout auf
-    await member.timeout(None, reason=reason)
-
-    # Sende Bestätigung
-    if isinstance(ctx, discord.Interaction):
-        await ctx.followup.send(embed=mod_embed)
-    else:
-        await ctx.send(embed=mod_embed)
-
-    # DM an den Moderator
-    mod_dm_embed = discord.Embed(
-        title="🛠️ Moderation ausgeführt",
-        description=f"Deine Moderationsaktion wurde ausgeführt.",
-        color=discord.Color.green()
-    )
-    mod_dm_embed.add_field(name="Aktion", value="Timeout aufgehoben", inline=True)
-    mod_dm_embed.add_field(name="User", value=f"{member} ({member.id})", inline=True)
-    try:
-        await author.send(embed=mod_dm_embed)
-    except:
-        pass
+    print(f'🎮 Bot ist online als {bot.user.name}')
+    await bot.change_presence(activity=discord.Game(name="!help | Casino Games"))
 
 @bot.command()
-@commands.has_permissions(administrator=True)
-async def online(ctx):
-    uptime = datetime.datetime.utcnow() - bot.start_time
-    hours = uptime.seconds // 3600
-    minutes = (uptime.seconds % 3600) // 60
-    seconds = uptime.seconds % 60
-
+@commands.cooldown(1, 86400, commands.BucketType.user)  # 24h cooldown
+async def daily(ctx):
+    amount = random.randint(1000, 2000)
+    update_coins(ctx.author.id, amount)
+    
     embed = discord.Embed(
-        title="🤖 Bot Status",
+        title="📅 Tägliche Belohnung",
+        description=f"Du hast **{amount:,}** Coins erhalten!\nKomm morgen wieder!",
         color=discord.Color.green()
     )
-    
-    embed.add_field(
-        name="Status",
-        value="Online und bereit!",
-        inline=False
-    )
-    
-    embed.add_field(
-        name="Latenz",
-        value=f" {round(bot.latency * 1000)}ms",
-        inline=True
-    )
-    
-    embed.add_field(
-        name="Uptime",
-        value=f" {uptime.days}d {hours}h {minutes}m {seconds}s",
-        inline=True
-    )
-    
-    embed.add_field(
-        name="Server",
-        value=f" {len(bot.guilds)} Server",
-        inline=True
-    )
-    
-    embed.set_footer(text=f"Bot Version: 1.0 • Gestartet am {bot.start_time.strftime('%d.%m.%Y um %H:%M:%S')}")
-    
     await ctx.send(embed=embed)
 
-@online.error
-async def online_error(ctx, error):
-    if isinstance(error, commands.MissingPermissions):
-        await ctx.send(" Du brauchst Administrator-Rechte um diesen Befehl zu nutzen!")
+@bot.command()
+@commands.cooldown(1, 3600, commands.BucketType.user)  # 1h cooldown
+async def work(ctx):
+    amount = random.randint(100, 500)
+    update_coins(ctx.author.id, amount)
+    
+    jobs = [
+        "🏢 Als Bürokaufmann",
+        "🚕 Als Taxifahrer",
+        "👨‍🍳 Als Koch",
+        "🎨 Als Künstler",
+        "🔧 Als Mechaniker",
+        "💻 Als Programmierer",
+        "📦 Als Paketbote",
+        "🏪 Als Kassierer",
+        "🌳 Als Gärtner",
+        "🎵 Als Straßenmusiker"
+    ]
+    
+    embed = discord.Embed(
+        title="💼 Arbeit",
+        description=f"{random.choice(jobs)} hast du **{amount:,}** Coins verdient!",
+        color=discord.Color.green()
+    )
+    await ctx.send(embed=embed)
 
-@bot.command(name="help")
-async def casino_help(ctx, command: str = None):
-    if command:
-        # Hilfe für spezifischen Befehl
-        command = command.lower()
-        if command == "slots":
-            embed = discord.Embed(title="🎰 Slots - Hilfe", description=SLOTS_HELP, color=discord.Color.blue())
-        elif command == "roulette":
-            embed = discord.Embed(title="🎲 Roulette - Hilfe", description=ROULETTE_HELP, color=discord.Color.blue())
-        elif command == "dice":
-            embed = discord.Embed(title="🎲 Würfel - Hilfe", description=DICE_HELP, color=discord.Color.blue())
-        elif command == "scratch":
-            embed = discord.Embed(title="🎫 Rubbellos - Hilfe", description=SCRATCH_HELP, color=discord.Color.blue())
-        elif command == "race":
-            embed = discord.Embed(title="🏇 Pferderennen - Hilfe", description=RACE_HELP, color=discord.Color.blue())
-        elif command == "yahtzee":
-            embed = discord.Embed(title="🎲 Yahtzee - Hilfe", description=YAHTZEE_HELP, color=discord.Color.blue())
-        elif command == "coinflip":
-            embed = discord.Embed(title="🪙 Münzwurf - Hilfe", description=COINFLIP_HELP, color=discord.Color.blue())
-        else:
-            embed = discord.Embed(
-                title="❓ Unbekannter Befehl",
-                description=f"Der Befehl `{command}` wurde nicht gefunden!\nNutze `!help` für eine Liste aller Befehle.",
-                color=discord.Color.red()
-            )
-    else:
-        # Allgemeine Hilfe
+@bot.command()
+@commands.cooldown(1, 300, commands.BucketType.user)  # 5min cooldown
+async def beg(ctx):
+    amount = random.randint(1, 100)
+    update_coins(ctx.author.id, amount)
+    
+    responses = [
+        "🥺 Ein Passant hat Mitleid",
+        "👵 Eine alte Dame ist großzügig",
+        "🎭 Ein Straßenkünstler teilt",
+        "🎪 Ein Zirkusclown ist nett",
+        "🎸 Ein Musiker ist beeindruckt",
+        "🎨 Ein Künstler ist inspiriert",
+        "🌟 Ein Fan erkennt dich",
+        "🍀 Dein Glückstag",
+        "💝 Jemand mag dich",
+        "🎁 Ein Geschenk vom Himmel"
+    ]
+    
+    embed = discord.Embed(
+        title="🙏 Betteln",
+        description=f"{random.choice(responses)} und gibt dir **{amount:,}** Coins!",
+        color=discord.Color.green()
+    )
+    await ctx.send(embed=embed)
+
+@bot.command()
+@commands.cooldown(1, 7200, commands.BucketType.user)  # 2h cooldown
+async def rob(ctx, victim: discord.Member):
+    if victim.id == ctx.author.id:
         embed = discord.Embed(
-            title="🎮 Casino Bot - Hilfe",
-            description="Hier sind alle verfügbaren Befehle:",
-            color=discord.Color.blue()
+            title="🤔 Moment mal...",
+            description="Du kannst dich nicht selbst ausrauben!",
+            color=discord.Color.red()
         )
-        
-        # Economy Commands
-        embed.add_field(
-            name="💰 Economy",
-            value="```\n"
-                  "!daily   - Tägliche Coins\n"
-                  "!work    - Arbeiten für Coins\n"
-                  "!beg     - Betteln für Coins\n"
-                  "!rob     - Andere Spieler ausrauben\n"
-                  "!balance - Zeigt dein Guthaben\n"
-                  "!top     - Zeigt die reichsten Spieler\n"
-                  "```",
-            inline=False
+        await ctx.send(embed=embed)
+        return
+    
+    victim_coins = get_coins(victim.id)
+    if victim_coins < 100:
+        embed = discord.Embed(
+            title="❌ Zu arm",
+            description=f"{victim.mention} hat zu wenig Coins zum Ausrauben!",
+            color=discord.Color.red()
         )
+        await ctx.send(embed=embed)
+        return
+    
+    success = random.random() < 0.4  # 40% Chance
+    
+    if success:
+        amount = random.randint(1, min(1000, victim_coins))
+        update_coins(victim.id, -amount)
+        update_coins(ctx.author.id, amount)
         
-        # Casino Games
-        embed.add_field(
-            name="🎲 Casino Spiele",
-            value="```\n"
-                  "!slots    - Spielautomat\n"
-                  "!roulette - Roulette\n"
-                  "!coinflip - Münzwurf\n"
-                  "!dice     - Würfelspiel\n"
-                  "!scratch  - Rubbellos\n"
-                  "!race     - Pferderennen\n"
-                  "!yahtzee  - Würfelpoker\n"
-                  "```",
-            inline=False
+        embed = discord.Embed(
+            title="💰 Erfolgreicher Raub",
+            description=f"Du hast {victim.mention} **{amount:,}** Coins geklaut!",
+            color=discord.Color.green()
         )
+    else:
+        fine = random.randint(100, 500)
+        update_coins(ctx.author.id, -fine)
         
-        embed.set_footer(text="Nutze !help <befehl> für mehr Infos zu einem Befehl")
+        embed = discord.Embed(
+            title="🚔 Erwischt",
+            description=f"Du wurdest gefasst und musst **{fine:,}** Coins Strafe zahlen!",
+            color=discord.Color.red()
+        )
     
     await ctx.send(embed=embed)
 
@@ -1000,7 +646,8 @@ async def wheel(ctx, bet: int = None):
                       "• 💫 1.2x (25% Chance)\n"
                       "• 💀 0.0x (25% Chance)\n\n"
                       "**Verwendung:**\n"
-                      "`!wheel <einsatz>`",
+                      "`!wheel <einsatz>`\n"
+                      "Beispiel: `!wheel 100`",
             color=discord.Color.gold()
         )
         await ctx.send(embed=embed)
@@ -1188,67 +835,6 @@ async def slots(ctx, bet_amount: int = None):
     update_coins(ctx.author.id, -bet_amount)
     view = SlotsView(bet_amount, ctx.author.id, ctx)
     await view.start()
-
-# Pferderennen Command
-@bot.command()
-async def horserace(ctx, bet_amount: int = None, horse: str = None):
-    valid_horses = {"braun": "🐎", "einhorn": "🦄", "weiss": "🐴"}
-    
-    if not bet_amount or not horse or horse.lower() not in valid_horses:
-        embed = discord.Embed(
-            title="🏇 Pferderennen",
-            description="Wette auf ein Pferd!\n\n"
-                      "**Pferde:**\n"
-                      "🐎 Braunes Pferd (braun)\n"
-                      "🦄 Einhorn (einhorn)\n"
-                      "🐴 Weißes Pferd (weiss)\n\n"
-                      "**Gewinne:**\n"
-                      "• Gewinner: 3x Einsatz\n\n"
-                      "**Verwendung:**\n"
-                      "`!horserace <einsatz> <pferd>`\n"
-                      "Beispiel: `!horserace 100 einhorn`",
-            color=discord.Color.gold()
-        )
-        await ctx.send(embed=embed)
-        return
-
-    if bet_amount < 1:
-        await ctx.send("❌ Der Mindesteinsatz ist 1 Coin!")
-        return
-
-    balance = get_coins(ctx.author.id)
-    if balance < bet_amount:
-        await ctx.send("❌ Du hast nicht genug Coins!")
-        return
-
-    update_coins(ctx.author.id, -bet_amount)
-    chosen_horse = valid_horses[horse.lower()]
-    race = HorseRace(bet_amount, ctx.author.id)
-
-    embed = discord.Embed(
-        title="🏇 Pferderennen",
-        description=f"Das Rennen beginnt!\nDeine Wette: {chosen_horse}\n\n{race.get_track_display()}",
-        color=discord.Color.gold()
-    )
-    race.message = await ctx.send(embed=embed)
-
-    while not race.winner:
-        race.move_horses()
-        embed.description = f"Das Rennen läuft!\nDeine Wette: {chosen_horse}\n\n{race.get_track_display()}"
-        await race.message.edit(embed=embed)
-        await asyncio.sleep(0.3)  # Schnellere Updates
-
-    # Zeige Ergebnis
-    if race.winner == chosen_horse:
-        winnings = bet_amount * 3
-        update_coins(ctx.author.id, winnings)
-        embed.description = f"**Gewonnen!** 🎉\nDein Pferd {chosen_horse} hat gewonnen!\nDu bekommst {winnings} Coins!\n\n{race.get_track_display()}"
-        embed.color = discord.Color.green()
-    else:
-        embed.description = f"**Verloren!** 😢\n{race.winner} hat gewonnen!\nDein Pferd: {chosen_horse}\n\n{race.get_track_display()}"
-        embed.color = discord.Color.red()
-
-    await race.message.edit(embed=embed)
 
 class RouletteGame:
     def __init__(self):
@@ -1519,32 +1105,17 @@ async def coinflip(ctx, bet_amount: int = None, choice: str = None):
         return
 
     if bet_amount < 1:
-        embed = discord.Embed(
-            title="❌ Fehler",
-            description="Der Mindesteinsatz ist 1 Coin!",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed)
+        await ctx.send("❌ Der Mindesteinsatz ist 1 Coin!")
         return
 
     choice = choice.lower()
     if choice not in ['kopf', 'zahl']:
-        embed = discord.Embed(
-            title="❌ Fehler",
-            description="Bitte wähle 'kopf' oder 'zahl'!",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed)
+        await ctx.send("❌ Bitte wähle 'kopf' oder 'zahl'!")
         return
 
     user_coins = get_coins(ctx.author.id)
     if user_coins < bet_amount:
-        embed = discord.Embed(
-            title="❌ Fehler",
-            description=f"Du hast nicht genug Coins! Dir fehlen noch **{bet_amount - user_coins:,}** Coins.",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed)
+        await ctx.send("❌ Du hast nicht genug Coins!")
         return
 
     # Münzwurf Animation
@@ -2178,105 +1749,6 @@ async def yahtzee(ctx, bet_amount: int = None):
     view = YahtzeeView(bet_amount, ctx.author.id, ctx)
     await view.start()
 
-# Globale Fehlermeldungen
-INSUFFICIENT_COINS = "❌ Du hast nicht genug Coins!"
-MINIMUM_BET = "❌ Der Mindesteinsatz ist {} Coins!"
-NOT_YOUR_GAME = "❌ Das ist nicht dein Spiel!"
-ALREADY_ROLLING = "❌ Die Würfel rollen bereits!"
-ALREADY_SPINNING = "❌ Das Rad dreht sich bereits!"
-NO_ROLLS_LEFT = "❌ Keine Würfe mehr übrig!"
-WAIT_FOR_ROLL = "❌ Warte bis die Würfel aufhören zu rollen!"
-
-# Hilfe-Texte für Spiele
-SLOTS_HELP = """🎰 Drehe am Spielautomaten!
-
-**Gewinne:**
-💎 Diamant: 50x
-7️⃣ Sieben: 20x
-🍀 Kleeblatt: 10x
-⭐ Stern: 5x
-🔔 Glocke: 3x
-🍒 Kirsche: 2x
-🍋 Zitrone: 1.5x
-
-**Verwendung:**
-`!slots <einsatz>`
-Beispiel: `!slots 100`"""
-
-ROULETTE_HELP = """🎲 Setze auf eine Farbe oder Zahl!
-
-**Wetten & Gewinne:**
-🔴 Rot: 2x
-⚫ Schwarz: 2x
-🟢 Grün (0): 14x
-2️⃣ Gerade: 2x
-1️⃣ Ungerade: 2x
-
-**Verwendung:**
-`!roulette <einsatz>`
-Beispiel: `!roulette 100`"""
-
-DICE_HELP = """🎲 Wähle eine Zahl und würfle!
-
-**Gewinne:**
-• Richtige Zahl: 6x Einsatz
-• Falsche Zahl: Verloren
-
-**Verwendung:**
-`!dice <einsatz>`
-Beispiel: `!dice 100`"""
-
-SCRATCH_HELP = """🎫 Kaufe ein Rubbellos!
-
-**Gewinne:**
-💎 Diamant: 50x
-7️⃣ Sieben: 20x
-🍀 Kleeblatt: 10x
-⭐ Stern: 5x
-🔔 Glocke: 3x
-🍒 Kirsche: 2x
-🍋 Zitrone: 1.5x
-
-**Verwendung:**
-`!scratch <einsatz>`
-Beispiel: `!scratch 100`"""
-
-RACE_HELP = """🏇 Wette auf ein Pferd!
-
-**Wetten:**
-• Pferd 1-3
-• Gewinn: 3x Einsatz
-
-**Verwendung:**
-`!race <einsatz> <pferd>`
-Beispiel: `!race 100 1`"""
-
-YAHTZEE_HELP = """🎲 Würfelpoker!
-
-**Gewinne:**
-🎯 Yahtzee (5 gleiche): 50x
-🎲 Vier gleiche: 30x
-🎲 Full House: 20x
-🎲 Große Straße: 15x
-🎲 Kleine Straße: 10x
-🎲 Drei gleiche: 5x
-🎲 Zwei Paare: 3x
-🎲 Ein Paar: 1.5x
-
-**Verwendung:**
-`!yahtzee <einsatz>`
-Beispiel: `!yahtzee 100`"""
-
-COINFLIP_HELP = """🪙 Wirf eine Münze!
-
-**Gewinne:**
-• Richtig: 2x Einsatz
-• Falsch: Verloren
-
-**Verwendung:**
-`!coinflip <einsatz> <kopf/zahl>`
-Beispiel: `!coinflip 100 kopf`"""
-
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
@@ -2361,118 +1833,6 @@ async def top(ctx):
     )
     await ctx.send(embed=embed)
 
-@bot.command()
-@commands.cooldown(1, 86400, commands.BucketType.user)  # 24h cooldown
-async def daily(ctx):
-    amount = random.randint(1000, 2000)
-    update_coins(ctx.author.id, amount)
-    
-    embed = discord.Embed(
-        title="📅 Tägliche Belohnung",
-        description=f"Du hast **{amount:,}** Coins erhalten!\nKomm morgen wieder!",
-        color=discord.Color.green()
-    )
-    await ctx.send(embed=embed)
-
-@bot.command()
-@commands.cooldown(1, 3600, commands.BucketType.user)  # 1h cooldown
-async def work(ctx):
-    amount = random.randint(100, 500)
-    update_coins(ctx.author.id, amount)
-    
-    jobs = [
-        "🏢 Als Bürokaufmann",
-        "🚕 Als Taxifahrer",
-        "👨‍🍳 Als Koch",
-        "🎨 Als Künstler",
-        "🔧 Als Mechaniker",
-        "💻 Als Programmierer",
-        "📦 Als Paketbote",
-        "🏪 Als Kassierer",
-        "🌳 Als Gärtner",
-        "🎵 Als Straßenmusiker"
-    ]
-    
-    embed = discord.Embed(
-        title="💼 Arbeit",
-        description=f"{random.choice(jobs)} hast du **{amount:,}** Coins verdient!",
-        color=discord.Color.green()
-    )
-    await ctx.send(embed=embed)
-
-@bot.command()
-@commands.cooldown(1, 300, commands.BucketType.user)  # 5min cooldown
-async def beg(ctx):
-    amount = random.randint(1, 100)
-    update_coins(ctx.author.id, amount)
-    
-    responses = [
-        "🥺 Ein Passant hat Mitleid",
-        "👵 Eine alte Dame ist großzügig",
-        "🎭 Ein Straßenkünstler teilt",
-        "🎪 Ein Zirkusclown ist nett",
-        "🎸 Ein Musiker ist beeindruckt",
-        "🎨 Ein Künstler ist inspiriert",
-        "🌟 Ein Fan erkennt dich",
-        "🍀 Dein Glückstag",
-        "💝 Jemand mag dich",
-        "🎁 Ein Geschenk vom Himmel"
-    ]
-    
-    embed = discord.Embed(
-        title="🙏 Betteln",
-        description=f"{random.choice(responses)} und gibt dir **{amount:,}** Coins!",
-        color=discord.Color.green()
-    )
-    await ctx.send(embed=embed)
-
-@bot.command()
-@commands.cooldown(1, 7200, commands.BucketType.user)  # 2h cooldown
-async def rob(ctx, victim: discord.Member):
-    if victim.id == ctx.author.id:
-        embed = discord.Embed(
-            title="🤔 Moment mal...",
-            description="Du kannst dich nicht selbst ausrauben!",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed)
-        return
-    
-    victim_coins = get_coins(victim.id)
-    if victim_coins < 100:
-        embed = discord.Embed(
-            title="❌ Zu arm",
-            description=f"{victim.mention} hat zu wenig Coins zum Ausrauben!",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed)
-        return
-    
-    success = random.random() < 0.4  # 40% Chance
-    
-    if success:
-        amount = random.randint(1, min(1000, victim_coins))
-        update_coins(victim.id, -amount)
-        update_coins(ctx.author.id, amount)
-        
-        embed = discord.Embed(
-            title="💰 Erfolgreicher Raub",
-            description=f"Du hast {victim.mention} **{amount:,}** Coins geklaut!",
-            color=discord.Color.green()
-        )
-    else:
-        fine = random.randint(100, 500)
-        update_coins(ctx.author.id, -fine)
-        
-        embed = discord.Embed(
-            title="🚔 Erwischt",
-            description=f"Du wurdest gefasst und musst **{fine:,}** Coins Strafe zahlen!",
-            color=discord.Color.red()
-        )
-    
-    await ctx.send(embed=embed)
-
-# Wenn die Datei direkt ausgeführt wird
 if __name__ == "__main__":
     keep_alive()  # Startet den Webserver für 24/7 Uptime
     bot.run(os.getenv('DISCORD_TOKEN'))
