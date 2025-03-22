@@ -32,7 +32,11 @@ def keep_alive():
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
-bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
+bot = commands.Bot(
+    command_prefix="!",
+    intents=intents,
+    help_command=None  # Deaktiviert den Standard-Help-Command
+)
 
 # Datenbank Setup
 conn = sqlite3.connect('casino.db')
@@ -2271,6 +2275,88 @@ async def stopcounting(ctx):
         title="✅ Counting deaktiviert",
         description="Das Counting-System wurde deaktiviert.",
         color=discord.Color.red()
+    )
+    await ctx.send(embed=embed)
+
+@bot.event
+async def on_member_join(member):
+    # Prüfe/Erstelle Member-Rolle
+    member_role = discord.utils.get(member.guild.roles, name="Member")
+    if not member_role:
+        # Erstelle die Rolle wenn sie nicht existiert
+        member_role = await member.guild.create_role(
+            name="Member",
+            color=discord.Color.blue(),
+            mentionable=True,
+            reason="Automatisch erstellte Rolle für neue Mitglieder"
+        )
+    
+    # Gebe dem neuen Mitglied die Rolle
+    await member.add_roles(member_role)
+    
+    # Sende Willkommensnachricht
+    welcome_channel = discord.utils.get(member.guild.channels, name="willkommen")
+    if welcome_channel:
+        embed = discord.Embed(
+            title="👋 Willkommen!",
+            description=f"Herzlich Willkommen {member.mention} auf **{member.guild.name}**!\n"
+                      f"Du bist unser {len(member.guild.members)}. Mitglied!\n\n"
+                      "• Dir wurde automatisch die Member-Rolle gegeben\n"
+                      "• Nutze `!help` um alle Befehle zu sehen\n"
+                      "• Viel Spaß auf unserem Server! 🎉",
+            color=discord.Color.green()
+        )
+        embed.set_thumbnail(url=member.display_avatar.url)
+        await welcome_channel.send(embed=embed)
+
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def setupwelcome(ctx):
+    """Erstellt den Willkommens-Kanal und die Member-Rolle"""
+    
+    # Erstelle/Prüfe Member-Rolle
+    member_role = discord.utils.get(ctx.guild.roles, name="Member")
+    if not member_role:
+        member_role = await ctx.guild.create_role(
+            name="Member",
+            color=discord.Color.blue(),
+            mentionable=True,
+            reason="Rolle für Mitglieder"
+        )
+        role_created = "✅ Member-Rolle erstellt"
+    else:
+        role_created = "ℹ️ Member-Rolle existiert bereits"
+    
+    # Erstelle/Prüfe Willkommens-Kanal
+    welcome_channel = discord.utils.get(ctx.guild.channels, name="willkommen")
+    if not welcome_channel:
+        overwrites = {
+            ctx.guild.default_role: discord.PermissionOverwrite(
+                send_messages=False,
+                add_reactions=True
+            ),
+            ctx.guild.me: discord.PermissionOverwrite(
+                send_messages=True,
+                add_reactions=True
+            )
+        }
+        welcome_channel = await ctx.guild.create_text_channel(
+            'willkommen',
+            overwrites=overwrites,
+            reason="Kanal für Willkommensnachrichten"
+        )
+        channel_created = "✅ Willkommens-Kanal erstellt"
+    else:
+        channel_created = "ℹ️ Willkommens-Kanal existiert bereits"
+    
+    # Sende Bestätigung
+    embed = discord.Embed(
+        title="🛠️ Willkommens-System Setup",
+        description=f"{role_created}\n{channel_created}\n\n"
+                   "**Das System ist jetzt aktiv:**\n"
+                   "• Neue Mitglieder bekommen automatisch die Member-Rolle\n"
+                   "• Willkommensnachrichten erscheinen im {welcome_channel.mention} Kanal",
+        color=discord.Color.green()
     )
     await ctx.send(embed=embed)
 
