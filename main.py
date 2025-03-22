@@ -208,8 +208,8 @@ async def on_ready():
     print(f'🤖 Bot ist online als {bot.user.name}')
     await bot.change_presence(activity=discord.Game(name="!help | Dein Allrounder"))
 
-@bot.command(aliases=["commands", "befehle"])
-async def hilfe(ctx, category: str = None):
+@bot.command(name="help", aliases=["commands", "befehle", "hilfe"])
+async def help_command(ctx, category: str = None):
     if category:
         # Hilfe für spezifische Kategorie
         category = category.lower()
@@ -2579,6 +2579,27 @@ def generate_joke(prompt: str) -> str:
     )
     
     return joke
+
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def setupfunki(ctx, channel: discord.TextChannel):
+    # Füge den Kanal zur Datenbank hinzu
+    cursor.execute('''
+        INSERT OR REPLACE INTO funki_channels (guild_id, channel_id)
+        VALUES (?, ?)
+    ''', (ctx.guild.id, channel.id))
+    conn.commit()
+    
+    embed = discord.Embed(
+        title="✅ KI-Witze System eingerichtet!",
+        description=f"Der Kanal {channel.mention} wurde als KI-Witze-Kanal eingerichtet.\n\n"
+                   "**So funktioniert's:**\n"
+                   "1. Schreibe einfach eine Nachricht in den Kanal\n"
+                   "2. Die KI wird dir einen passenden Witz erzählen! 😄\n\n"
+                   "**Hinweis:** Befehle funktionieren in diesem Kanal nicht!",
+        color=discord.Color.green()
+    )
+    await ctx.send(embed=embed)
 
 if __name__ == "__main__":
     keep_alive()  # Startet den Webserver für 24/7 Uptime
