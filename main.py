@@ -11,7 +11,10 @@ from discord.ui import View, Button
 from flask import Flask
 from threading import Thread
 
-# Deaktiviere Audio-Features
+# Deaktiviere Audio-Features vollständig
+import sys
+import discord.voice_client
+sys.modules['discord.voice_client'] = None
 discord.VoiceClient = None
 
 # Flask App für Render
