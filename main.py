@@ -173,119 +173,97 @@ def get_last_used(user_id: int, command: str) -> Optional[datetime.datetime]:
 # Economy Commands
 @bot.command()
 async def daily(ctx):
-    user_id = ctx.author.id
-    last_used = get_last_used(user_id, 'daily')
-    now = datetime.datetime.now()
-    
-    # Berechne wann der nächste Tag beginnt (0 Uhr)
-    tomorrow = now.replace(hour=0, minute=0, second=0, microsecond=0) + datetime.timedelta(days=1)
-    
+    # Prüfe ob der Befehl heute schon benutzt wurde
+    last_used = get_last_used(ctx.author.id, "daily")
     if last_used:
-        time_left = tomorrow - now
-        if time_left.total_seconds() > 0:
-            hours = int(time_left.total_seconds() // 3600)
-            minutes = int((time_left.total_seconds() % 3600) // 60)
-            await ctx.send(f"❌ Du musst noch **{hours}h {minutes}m** warten, bis du deine tägliche Belohnung abholen kannst!")
+        # Setze den Reset auf 1 Uhr nachts
+        next_reset = last_used.replace(hour=1, minute=0, second=0, microsecond=0)
+        if last_used.hour >= 1:
+            next_reset = next_reset + datetime.timedelta(days=1)
+        
+        if datetime.datetime.now() < next_reset:
+            time_left = next_reset - datetime.datetime.now()
+            hours = time_left.seconds // 3600
+            minutes = (time_left.seconds % 3600) // 60
+            await ctx.send(f"❌ Du kannst den Daily-Bonus erst wieder um 1 Uhr nachts abholen! (Noch {hours}h {minutes}m)")
             return
-    
-    reward = random.randint(100, 500)
-    update_coins(user_id, reward)
-    update_last_used(user_id, 'daily')
-    
-    embed = discord.Embed(
-        title="🎁 Tägliche Belohnung!",
-        description=f"Du hast **{reward}** Coins erhalten!\nKomm morgen wieder für mehr!",
-        color=discord.Color.gold()
-    )
-    embed.set_footer(text="Tipp: Nutze !work und !beg für noch mehr Coins! 💰")
-    await ctx.send(embed=embed)
+
+    # Gib dem Benutzer Coins
+    coins = random.randint(100, 1000)
+    update_coins(ctx.author.id, coins)
+    update_last_used(ctx.author.id, "daily")
+    await ctx.send(f"💰 Du hast deinen täglichen Bonus von {coins} Coins erhalten!")
 
 @bot.command()
 async def work(ctx):
-    user_id = ctx.author.id
-    last_used = get_last_used(user_id, 'work')
-    now = datetime.datetime.now()
-    
+    # Prüfe 1-Stunden-Cooldown
+    last_used = get_last_used(ctx.author.id, "work")
     if last_used:
-        cooldown = datetime.timedelta(hours=1)
-        time_left = (last_used + cooldown) - now
-        if time_left.total_seconds() > 0:
-            minutes = int(time_left.total_seconds() // 60)
-            await ctx.send(f"❌ Du musst noch **{minutes}m** warten, bevor du wieder arbeiten kannst!")
+        time_diff = datetime.datetime.now() - last_used
+        if time_diff.total_seconds() < 3600:  # 1 Stunde = 3600 Sekunden
+            minutes_left = 60 - (time_diff.total_seconds() // 60)
+            await ctx.send(f"❌ Du musst noch {int(minutes_left)} Minuten warten, bevor du wieder arbeiten kannst!")
             return
-    
-    jobs = [
-        {"text": "Du hast im Büro gearbeitet", "emoji": "💼"},
-        {"text": "Du hast als Kellner gearbeitet", "emoji": "🍽️"},
-        {"text": "Du hast als Mechaniker gearbeitet", "emoji": "🔧"},
-        {"text": "Du hast als Programmierer gearbeitet", "emoji": "💻"},
-        {"text": "Du hast als Künstler gearbeitet", "emoji": "🎨"}
-    ]
-    
-    job = random.choice(jobs)
-    reward = random.randint(50, 200)
-    update_coins(user_id, reward)
-    update_last_used(user_id, 'work')
-    
-    embed = discord.Embed(
-        title=f"{job['emoji']} Arbeit abgeschlossen!",
-        description=f"{job['text']} und **{reward}** Coins verdient!",
-        color=discord.Color.blue()
-    )
-    embed.set_footer(text="Komm in einer Stunde wieder! 💪")
-    await ctx.send(embed=embed)
+
+    # Gib dem Benutzer Coins
+    coins = random.randint(50, 200)
+    update_coins(ctx.author.id, coins)
+    update_last_used(ctx.author.id, "work")
+    await ctx.send(f"💼 Du hast {coins} Coins durch Arbeit verdient!")
 
 @bot.command()
 async def beg(ctx):
-    user_id = ctx.author.id
-    last_used = get_last_used(user_id, 'beg')
-    now = datetime.datetime.now()
-    
+    # Prüfe 1-Stunden-Cooldown
+    last_used = get_last_used(ctx.author.id, "beg")
     if last_used:
-        cooldown = datetime.timedelta(minutes=5)
-        time_left = (last_used + cooldown) - now
-        if time_left.total_seconds() > 0:
-            seconds = int(time_left.total_seconds())
-            await ctx.send(f"❌ Du musst noch **{seconds}s** warten, bevor du wieder betteln kannst!")
+        time_diff = datetime.datetime.now() - last_used
+        if time_diff.total_seconds() < 3600:  # 1 Stunde = 3600 Sekunden
+            minutes_left = 60 - (time_diff.total_seconds() // 60)
+            await ctx.send(f"❌ Du musst noch {int(minutes_left)} Minuten warten, bevor du wieder betteln kannst!")
             return
-    
-    success = random.random() < 0.15  # 15% Chance auf Erfolg
-    
-    if success:
-        reward = random.randint(10, 50)
-        update_coins(user_id, reward)
-        
-        responses = [
-            {"text": "Ein freundlicher Fremder", "emoji": "🤝"},
-            {"text": "Eine nette alte Dame", "emoji": "👵"},
-            {"text": "Ein großzügiger Geschäftsmann", "emoji": "👨‍💼"},
-            {"text": "Ein mitfühlender Tourist", "emoji": "🧳"},
-            {"text": "Ein freundlicher Straßenmusiker", "emoji": "🎸"}
-        ]
-        
-        response = random.choice(responses)
-        embed = discord.Embed(
-            title=f"{response['emoji']} Erfolgreiches Betteln!",
-            description=f"{response['text']} gab dir **{reward}** Coins!",
-            color=discord.Color.green()
-        )
+
+    # 50% Chance auf Erfolg
+    if random.random() < 0.5:
+        coins = random.randint(1, 100)
+        update_coins(ctx.author.id, coins)
+        update_last_used(ctx.author.id, "beg")
+        await ctx.send(f"🙏 Jemand hat Mitleid mit dir und gibt dir {coins} Coins!")
     else:
-        responses = [
-            "Leider hat dir niemand etwas gegeben... 😢",
-            "Heute ist wohl nicht dein Glückstag... 😔",
-            "Vielleicht hast du beim nächsten Mal mehr Glück! 🍀",
-            "Die Leute waren heute nicht sehr großzügig... 💔"
-        ]
-        
-        embed = discord.Embed(
-            title="😢 Kein Erfolg!",
-            description=random.choice(responses),
-            color=discord.Color.red()
-        )
-    
-    update_last_used(user_id, 'beg')
-    embed.set_footer(text="Tipp: Arbeiten (!work) bringt mehr Coins ein! 💡")
-    await ctx.send(embed=embed)
+        update_last_used(ctx.author.id, "beg")
+        await ctx.send("😔 Niemand wollte dir Coins geben...")
+
+@bot.command()
+async def rob(ctx, member: discord.Member):
+    if member.id == ctx.author.id:
+        await ctx.send("❌ Du kannst dich nicht selbst ausrauben!")
+        return
+
+    # Prüfe 1-Stunden-Cooldown
+    last_used = get_last_used(ctx.author.id, "rob")
+    if last_used:
+        time_diff = datetime.datetime.now() - last_used
+        if time_diff.total_seconds() < 3600:  # 1 Stunde = 3600 Sekunden
+            minutes_left = 60 - (time_diff.total_seconds() // 60)
+            await ctx.send(f"❌ Du musst noch {int(minutes_left)} Minuten warten, bevor du wieder jemanden ausrauben kannst!")
+            return
+
+    victim_coins = get_coins(member.id)
+    if victim_coins < 50:
+        await ctx.send("❌ Diese Person hat zu wenig Coins zum Ausrauben!")
+        return
+
+    # 15% Chance auf Erfolg
+    if random.random() < 0.15:
+        stolen = random.randint(1, min(victim_coins, 1000))
+        update_coins(member.id, -stolen)
+        update_coins(ctx.author.id, stolen)
+        update_last_used(ctx.author.id, "rob")
+        await ctx.send(f"💰 Du hast {stolen} Coins von {member.name} gestohlen!")
+    else:
+        fine = random.randint(50, 200)
+        update_coins(ctx.author.id, -fine)
+        update_last_used(ctx.author.id, "rob")
+        await ctx.send(f"👮 Du wurdest erwischt und musst {fine} Coins Strafe zahlen!")
 
 @bot.command()
 async def pay(ctx, member: discord.Member, amount: int):
@@ -311,59 +289,6 @@ async def pay(ctx, member: discord.Member, amount: int):
         color=discord.Color.green()
     )
     embed.set_footer(text="Vielen Dank für die Transaktion! 🙏")
-    await ctx.send(embed=embed)
-
-@bot.command()
-async def rob(ctx, member: discord.Member):
-    if member.id == ctx.author.id:
-        await ctx.send("❌ Du kannst dich nicht selbst ausrauben!")
-        return
-    
-    user_id = ctx.author.id
-    last_used = get_last_used(user_id, 'rob')
-    now = datetime.datetime.now()
-    
-    if last_used:
-        cooldown = datetime.timedelta(hours=1)
-        time_left = (last_used + cooldown) - now
-        if time_left.total_seconds() > 0:
-            minutes = int(time_left.total_seconds() // 60)
-            await ctx.send(f"❌ Du musst noch **{minutes}m** warten, bevor du wieder jemanden ausrauben kannst!")
-            return
-    
-    victim_coins = get_coins(member.id)
-    if victim_coins < 100:
-        await ctx.send(f"❌ {member.mention} hat zu wenig Coins zum Ausrauben!")
-        return
-        
-    user_coins = get_coins(ctx.author.id)
-    if user_coins < 100:
-        await ctx.send("❌ Du brauchst mindestens 100 Coins zum Ausrauben!")
-        return
-
-    success = random.random() < 0.15  # 15% Chance auf Erfolg
-    
-    if success:
-        stolen = random.randint(50, min(200, victim_coins))
-        update_coins(member.id, -stolen)
-        update_coins(user_id, stolen)
-        
-        embed = discord.Embed(
-            title="🦹‍♂️ Erfolgreicher Raub!",
-            description=f"Du hast {member.mention} **{stolen}** Coins gestohlen!",
-            color=discord.Color.dark_red()
-        )
-    else:
-        fine = random.randint(50, min(200, user_coins))
-        update_coins(user_id, -fine)
-        
-        embed = discord.Embed(
-            title="🚔 Erwischt!",
-            description=f"Du wurdest beim Versuch {member.mention} auszurauben erwischt und musst **{fine}** Coins Strafe zahlen!",
-            color=discord.Color.red()
-        )
-    
-    update_last_used(user_id, 'rob')
     await ctx.send(embed=embed)
 
 @bot.command()
@@ -761,17 +686,17 @@ async def help(ctx, category: str = None):
         )
         embed.add_field(
             name="!daily",
-            value="Erhalte täglich zwischen 300-500 Coins\n Cooldown: 24 Stunden (Reset um 0 Uhr)",
+            value="Erhalte täglich zwischen 100-1000 Coins\n Cooldown: 24 Stunden (Reset um 1 Uhr)",
             inline=False
         )
         embed.add_field(
             name="!work",
-            value="Arbeite für 100-200 Coins\n Cooldown: 1 Stunde",
+            value="Arbeite für 50-200 Coins\n Cooldown: 1 Stunde",
             inline=False
         )
         embed.add_field(
             name="!beg",
-            value="Bettle um bis zu 100 Coins (15% Chance auf Erfolg!)\n Cooldown: 5 Minuten",
+            value="Bettle um bis zu 100 Coins (50% Chance auf Erfolg!)\n Cooldown: 1 Stunde",
             inline=False
         )
         embed.add_field(
