@@ -1311,39 +1311,39 @@ class ScratchView(View):
         return grid
 
     @discord.ui.button(label="1", style=discord.ButtonStyle.secondary, row=0)
-    async def button_1(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def button_1(self, interaction: discord.Interaction, button: Button):
         await self.reveal(interaction, 0, button)
 
     @discord.ui.button(label="2", style=discord.ButtonStyle.secondary, row=0)
-    async def button_2(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def button_2(self, interaction: discord.Interaction, button: Button):
         await self.reveal(interaction, 1, button)
 
     @discord.ui.button(label="3", style=discord.ButtonStyle.secondary, row=0)
-    async def button_3(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def button_3(self, interaction: discord.Interaction, button: Button):
         await self.reveal(interaction, 2, button)
 
     @discord.ui.button(label="4", style=discord.ButtonStyle.secondary, row=1)
-    async def button_4(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def button_4(self, interaction: discord.Interaction, button: Button):
         await self.reveal(interaction, 3, button)
 
     @discord.ui.button(label="5", style=discord.ButtonStyle.secondary, row=1)
-    async def button_5(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def button_5(self, interaction: discord.Interaction, button: Button):
         await self.reveal(interaction, 4, button)
 
     @discord.ui.button(label="6", style=discord.ButtonStyle.secondary, row=1)
-    async def button_6(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def button_6(self, interaction: discord.Interaction, button: Button):
         await self.reveal(interaction, 5, button)
 
     @discord.ui.button(label="7", style=discord.ButtonStyle.secondary, row=2)
-    async def button_7(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def button_7(self, interaction: discord.Interaction, button: Button):
         await self.reveal(interaction, 6, button)
 
     @discord.ui.button(label="8", style=discord.ButtonStyle.secondary, row=2)
-    async def button_8(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def button_8(self, interaction: discord.Interaction, button: Button):
         await self.reveal(interaction, 7, button)
 
     @discord.ui.button(label="9", style=discord.ButtonStyle.secondary, row=2)
-    async def button_9(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def button_9(self, interaction: discord.Interaction, button: Button):
         await self.reveal(interaction, 8, button)
 
     async def reveal(self, interaction: discord.Interaction, position: int, button: discord.ui.Button):
@@ -2098,6 +2098,105 @@ async def help(ctx, command: str = None):
         embed.set_footer(text="Nutze !help <befehl> für mehr Infos zu einem Befehl")
     
     await ctx.send(embed=embed)
+
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def creatorroles(ctx):
+    """Erstellt alle Rollen für das Server-Setup"""
+    
+    # Definiere die Rollen mit ihren Farben
+    roles_to_create = {
+        # Altersgruppen
+        "12+": discord.Color.light_grey(),
+        "16+": discord.Color.dark_grey(),
+        "18+": discord.Color.darker_grey(),
+        
+        # Geschlecht
+        "♂️ Männlich": discord.Color.blue(),
+        "♀️ Weiblich": discord.Color.magenta(),
+        
+        # Plattformen
+        "🤖 Android": discord.Color.green(),
+        "🍎 iOS": discord.Color.red(),
+        "💻 PC": discord.Color.blurple(),
+        "🍏 MacOS": discord.Color.light_grey(),
+        
+        # Spiele
+        "⛏️ Minecraft": discord.Color.dark_green(),
+        "🔫 Fortnite": discord.Color.purple(),
+        "🎮 Roblox": discord.Color.red(),
+        "🎯 Valorant": discord.Color.brand_red()
+    }
+    
+    # Erstelle ein Embed für den Status
+    embed = discord.Embed(
+        title="🛠️ Rollen-Setup",
+        description="Erstelle die Rollen...",
+        color=discord.Color.blue()
+    )
+    status_message = await ctx.send(embed=embed)
+    
+    # Erstelle die Rollen
+    created_roles = []
+    existing_roles = []
+    
+    for role_name, color in roles_to_create.items():
+        # Prüfe ob die Rolle bereits existiert
+        if discord.utils.get(ctx.guild.roles, name=role_name):
+            existing_roles.append(role_name)
+            continue
+            
+        # Erstelle die Rolle
+        try:
+            await ctx.guild.create_role(
+                name=role_name,
+                color=color,
+                mentionable=True
+            )
+            created_roles.append(role_name)
+        except Exception as e:
+            embed = discord.Embed(
+                title="❌ Fehler",
+                description=f"Fehler beim Erstellen der Rolle {role_name}:\n{str(e)}",
+                color=discord.Color.red()
+            )
+            await status_message.edit(embed=embed)
+            return
+    
+    # Erstelle das Erfolgs-Embed
+    embed = discord.Embed(
+        title="✅ Rollen-Setup abgeschlossen",
+        color=discord.Color.green()
+    )
+    
+    # Zeige erstellte Rollen
+    if created_roles:
+        roles_text = "\n".join(f"• {role}" for role in created_roles)
+        embed.add_field(
+            name="🆕 Erstellte Rollen",
+            value=roles_text,
+            inline=False
+        )
+    
+    # Zeige bereits existierende Rollen
+    if existing_roles:
+        roles_text = "\n".join(f"• {role}" for role in existing_roles)
+        embed.add_field(
+            name="ℹ️ Bereits vorhandene Rollen",
+            value=roles_text,
+            inline=False
+        )
+    
+    # Kategorien als Footer
+    categories = [
+        "👶 Altersgruppen: 12+, 16+, 18+",
+        "👥 Geschlecht: Männlich, Weiblich",
+        "📱 Plattformen: Android, iOS, PC, MacOS",
+        "🎮 Spiele: Minecraft, Fortnite, Roblox, Valorant"
+    ]
+    embed.set_footer(text=" • ".join(categories))
+    
+    await status_message.edit(embed=embed)
 
 if __name__ == "__main__":
     keep_alive()  # Startet den Webserver für 24/7 Uptime
