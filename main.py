@@ -29,7 +29,7 @@ def keep_alive():
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
-bot = commands.Bot(command_prefix="!", intents=intents)
+bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)  # Deaktiviere Standard-Help-Command
 
 # Datenbank Setup
 conn = sqlite3.connect('casino.db')
@@ -578,134 +578,71 @@ async def online_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
         await ctx.send(" Du brauchst Administrator-Rechte um diesen Befehl zu nutzen!")
 
-@bot.command()
-async def help(ctx, category: str = None):
-    if category is None:
-        # Hauptmenü
+@bot.command(name="help")
+async def casino_help(ctx, command: str = None):
+    if command:
+        # Hilfe für spezifischen Befehl
+        command = command.lower()
+        if command == "slots":
+            embed = discord.Embed(title="🎰 Slots - Hilfe", description=SLOTS_HELP, color=discord.Color.blue())
+        elif command == "roulette":
+            embed = discord.Embed(title="🎲 Roulette - Hilfe", description=ROULETTE_HELP, color=discord.Color.blue())
+        elif command == "dice":
+            embed = discord.Embed(title="🎲 Würfel - Hilfe", description=DICE_HELP, color=discord.Color.blue())
+        elif command == "scratch":
+            embed = discord.Embed(title="🎫 Rubbellos - Hilfe", description=SCRATCH_HELP, color=discord.Color.blue())
+        elif command == "race":
+            embed = discord.Embed(title="🏇 Pferderennen - Hilfe", description=RACE_HELP, color=discord.Color.blue())
+        elif command == "yahtzee":
+            embed = discord.Embed(title="🎲 Yahtzee - Hilfe", description=YAHTZEE_HELP, color=discord.Color.blue())
+        elif command == "coinflip":
+            embed = discord.Embed(title="🪙 Münzwurf - Hilfe", description=COINFLIP_HELP, color=discord.Color.blue())
+        else:
+            embed = discord.Embed(
+                title="❓ Unbekannter Befehl",
+                description=f"Der Befehl `{command}` wurde nicht gefunden!\nNutze `!help` für eine Liste aller Befehle.",
+                color=discord.Color.red()
+            )
+    else:
+        # Allgemeine Hilfe
         embed = discord.Embed(
-            title="🤖 Bot Hilfe",
-            description="Hier sind die verfügbaren Kategorien:\n\n"
-                      "• `!help moderation` - Moderations- und Statusbefehle\n"
-                      "• `!help economy` - Wirtschaftssystem und Befehle\n"
-                      "• `!help casino` - Casino-Spiele und Glücksspiel\n\n"
-                      "**Weitere Kategorien kommen bald!**",
+            title="🎮 Casino Bot - Hilfe",
+            description="Hier sind alle verfügbaren Befehle:",
             color=discord.Color.blue()
         )
-        embed.set_footer(text="Benutze !help <kategorie> für mehr Details")
-        await ctx.send(embed=embed)
-        return
-    
-    if category.lower() == "moderation":
-        # Moderations-Hilfe
-        embed = discord.Embed(
-            title="🛠️ Moderations- und Statusbefehle",
-            description="**Diese Befehle können nur von Administratoren verwendet werden!**\n\n"
-                       "**Hier sind alle verfügbaren Befehle:**",
-            color=discord.Color.green()
-        )
+        
+        # Economy Commands
         embed.add_field(
-            name="!online",
-            value="Zeigt detaillierte Statusinformationen des Bots",
+            name="💰 Economy",
+            value="```\n"
+                  "!daily   - Tägliche Coins\n"
+                  "!work    - Arbeiten für Coins\n"
+                  "!beg     - Betteln für Coins\n"
+                  "!rob     - Andere Spieler ausrauben\n"
+                  "!balance - Zeigt dein Guthaben\n"
+                  "!top     - Zeigt die reichsten Spieler\n"
+                  "```",
             inline=False
-        )
-        embed.add_field(
-            name="!kick @user [grund]",
-            value="Kickt einen Benutzer vom Server",
-            inline=False
-        )
-        embed.add_field(
-            name="!ban @user [grund]",
-            value="Bannt einen Benutzer vom Server",
-            inline=False
-        )
-        embed.add_field(
-            name="!timeout @user [dauer] [grund]",
-            value="Timeout für einen Benutzer (Standard: 5 Minuten)",
-            inline=False
-        )
-        embed.add_field(
-            name="!untimeout @user",
-            value="Entfernt den Timeout eines Benutzers",
-            inline=False
-        )
-        embed.set_footer(text=" Diese Befehle erfordern Administrator-Rechte!")
-        await ctx.send(embed=embed)
-        return
-    
-    if category.lower() == "economy":
-        # Economy-Hilfe
-        embed = discord.Embed(
-            title="💰 Wirtschaftssystem",
-            description="Hier sind alle verfügbaren Economy-Befehle:",
-            color=discord.Color.gold()
-        )
-        embed.add_field(
-            name="!daily",
-            value="Erhalte täglich zwischen 100-1000 Coins\n Cooldown: 24 Stunden (Reset um 1 Uhr)",
-            inline=False
-        )
-        embed.add_field(
-            name="!work",
-            value="Arbeite für 50-200 Coins\n Cooldown: 1 Stunde",
-            inline=False
-        )
-        embed.add_field(
-            name="!beg",
-            value="Bettle um bis zu 100 Coins (50% Chance auf Erfolg!)\n Cooldown: 1 Stunde",
-            inline=False
-        )
-        embed.add_field(
-            name="!pay @user <betrag>",
-            value="Überweise einem anderen Nutzer Coins",
-            inline=False
-        )
-        embed.add_field(
-            name="!rob @user",
-            value="Versuche einen anderen Nutzer auszurauben (15% Erfolgschance)\n Cooldown: 1 Stunde",
-            inline=False
-        )
-        embed.add_field(
-            name="!leaderboard",
-            value="Zeigt die reichsten Nutzer des Servers",
-            inline=False
-        )
-        embed.set_footer(text="Benutze die Befehle um Coins zu verdienen und auszugeben!")
-        await ctx.send(embed=embed)
-        return
-    
-    if category.lower() == "casino":
-        # Casino-Hilfe
-        embed = discord.Embed(
-            title="🎲 Casino & Glücksspiel",
-            description="Hier sind alle verfügbaren Casino-Spiele:",
-            color=discord.Color.purple()
         )
         
-        games = [
-            ("", "!blackjack <einsatz>\nSpiele Blackjack gegen den Dealer! Versuche 21 zu erreichen."),
-            ("", "!slots <einsatz>\nDrehe am einarmigen Banditen und gewinne bis zu 10x deinen Einsatz!"),
-            ("", "!roulette <einsatz> <farbe>\nSetze auf Rot oder Schwarz und gewinne das Doppelte!"),
-            ("", "!tower <einsatz>\nKlettere den Turm hoch und erhöhe deinen Multiplikator - aber fall nicht runter!"),
-            ("", "!dice <einsatz>\nWürfle gegen den Bot - höhere Zahl gewinnt!"),
-            ("", "!coinflip <einsatz> <kopf/zahl>\nWette auf Kopf oder Zahl!"),
-            ("", "!scratch <einsatz>\nKratze drei gleiche Symbole für einen Gewinn!"),
-            ("", "!yahtzee <einsatz>\nSpiele Würfelpoker und gewinne mit der besten Hand!"),
-            ("", "!wheel <einsatz>\nDrehe am Glücksrad für verschiedene Multiplikatoren!"),
-            ("", "!horserace <einsatz> <pferd>\nWette auf dein Lieblingspferd!")
-        ]
+        # Casino Games
+        embed.add_field(
+            name="🎲 Casino Spiele",
+            value="```\n"
+                  "!slots    - Spielautomat\n"
+                  "!roulette - Roulette\n"
+                  "!coinflip - Münzwurf\n"
+                  "!dice     - Würfelspiel\n"
+                  "!scratch  - Rubbellos\n"
+                  "!race     - Pferderennen\n"
+                  "!yahtzee  - Würfelpoker\n"
+                  "```",
+            inline=False
+        )
         
-        for name, description in games:
-            embed.add_field(
-                name=name,
-                value=description,
-                inline=False
-            )
-        
-        embed.set_footer(text=" Spiele verantwortungsvoll! Setze nie mehr als du verlieren kannst!")
-        await ctx.send(embed=embed)
-        return
+        embed.set_footer(text="Nutze !help <befehl> für mehr Infos zu einem Befehl")
     
-    await ctx.send(f" Die Kategorie `{category}` wurde nicht gefunden. Benutze `!help` für eine Liste aller Kategorien.")
+    await ctx.send(embed=embed)
 
 class Card:
     def __init__(self, suit: str, value: str):
@@ -2098,7 +2035,7 @@ class YahtzeeView(View):
             await self.message.edit(view=self)
 
     @discord.ui.button(label="Würfeln", style=discord.ButtonStyle.success, emoji="🎲", row=0)
-    async def roll(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def roll(self, interaction: discord.Interaction, button: Button):
         if self.rolling:
             await interaction.response.send_message("Die Würfel rollen bereits!", ephemeral=True)
             return
@@ -2391,72 +2328,6 @@ async def on_command_error(ctx, error):
 async def on_ready():
     print(f'🎮 Bot ist online als {bot.user.name}')
     await bot.change_presence(activity=discord.Game(name="!help | Casino Games"))
-
-@bot.command()
-async def help(ctx, command: str = None):
-    if command:
-        # Hilfe für spezifischen Befehl
-        command = command.lower()
-        if command == "slots":
-            embed = discord.Embed(title="🎰 Slots - Hilfe", description=SLOTS_HELP, color=discord.Color.blue())
-        elif command == "roulette":
-            embed = discord.Embed(title="🎲 Roulette - Hilfe", description=ROULETTE_HELP, color=discord.Color.blue())
-        elif command == "dice":
-            embed = discord.Embed(title="🎲 Würfel - Hilfe", description=DICE_HELP, color=discord.Color.blue())
-        elif command == "scratch":
-            embed = discord.Embed(title="🎫 Rubbellos - Hilfe", description=SCRATCH_HELP, color=discord.Color.blue())
-        elif command == "race":
-            embed = discord.Embed(title="🏇 Pferderennen - Hilfe", description=RACE_HELP, color=discord.Color.blue())
-        elif command == "yahtzee":
-            embed = discord.Embed(title="🎲 Yahtzee - Hilfe", description=YAHTZEE_HELP, color=discord.Color.blue())
-        elif command == "coinflip":
-            embed = discord.Embed(title="🪙 Münzwurf - Hilfe", description=COINFLIP_HELP, color=discord.Color.blue())
-        else:
-            embed = discord.Embed(
-                title="❓ Unbekannter Befehl",
-                description=f"Der Befehl `{command}` wurde nicht gefunden!\nNutze `!help` für eine Liste aller Befehle.",
-                color=discord.Color.red()
-            )
-    else:
-        # Allgemeine Hilfe
-        embed = discord.Embed(
-            title="🎮 Casino Bot - Hilfe",
-            description="Hier sind alle verfügbaren Befehle:",
-            color=discord.Color.blue()
-        )
-        
-        # Economy Commands
-        embed.add_field(
-            name="💰 Economy",
-            value="```\n"
-                  "!daily   - Tägliche Coins\n"
-                  "!work    - Arbeiten für Coins\n"
-                  "!beg     - Betteln für Coins\n"
-                  "!rob     - Andere Spieler ausrauben\n"
-                  "!balance - Zeigt dein Guthaben\n"
-                  "!top     - Zeigt die reichsten Spieler\n"
-                  "```",
-            inline=False
-        )
-        
-        # Casino Games
-        embed.add_field(
-            name="🎲 Casino Spiele",
-            value="```\n"
-                  "!slots    - Spielautomat\n"
-                  "!roulette - Roulette\n"
-                  "!coinflip - Münzwurf\n"
-                  "!dice     - Würfelspiel\n"
-                  "!scratch  - Rubbellos\n"
-                  "!race     - Pferderennen\n"
-                  "!yahtzee  - Würfelpoker\n"
-                  "```",
-            inline=False
-        )
-        
-        embed.set_footer(text="Nutze !help <befehl> für mehr Infos zu einem Befehl")
-    
-    await ctx.send(embed=embed)
 
 @bot.command()
 async def balance(ctx, member: discord.Member = None):
