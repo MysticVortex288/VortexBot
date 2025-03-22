@@ -2091,41 +2091,44 @@ async def yahtzee(ctx, bet_amount: int = None):
 
 @bot.event
 async def on_command_error(ctx, error):
+    # Ignoriere alle Errors, wenn der Command erfolgreich war
+    if hasattr(ctx.command, 'on_error'):
+        return
+        
+    if hasattr(ctx, 'handled'):
+        return
+
+    # Ignoriere CommandNotFound Errors
+    if isinstance(error, commands.CommandNotFound):
+        return
+
+    # Erstelle das Error Embed
+    embed = discord.Embed(color=discord.Color.red())
+    
     if isinstance(error, commands.CommandOnCooldown):
         hours = int(error.retry_after // 3600)
         minutes = int((error.retry_after % 3600) // 60)
         seconds = int(error.retry_after % 60)
         
-        embed = discord.Embed(
-            title="⏰ Cooldown",
-            description=f"Du musst noch **{hours}h {minutes}m {seconds}s** warten!",
-            color=discord.Color.orange()
-        )
-        await ctx.send(embed=embed)
+        embed.title = "⏰ Cooldown"
+        embed.description = f"Du musst noch **{hours}h {minutes}m {seconds}s** warten!"
+        embed.color = discord.Color.orange()
     
     elif isinstance(error, commands.MissingPermissions):
-        embed = discord.Embed(
-            title="❌ Keine Berechtigung",
-            description="Du hast keine Berechtigung für diesen Befehl!",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed)
-        
+        embed.title = "❌ Keine Berechtigung"
+        embed.description = "Du hast keine Berechtigung für diesen Befehl!"
+    
     elif isinstance(error, commands.MemberNotFound):
-        embed = discord.Embed(
-            title="❌ Mitglied nicht gefunden",
-            description="Dieser User wurde nicht gefunden!",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed)
-        
+        embed.title = "❌ Mitglied nicht gefunden"
+        embed.description = "Dieser User wurde nicht gefunden!"
+    
     else:
-        embed = discord.Embed(
-            title="❌ Fehler",
-            description=f"Ein unerwarteter Fehler ist aufgetreten: {str(error)}",
-            color=discord.Color.red()
-        )
+        return
+    
+    try:
         await ctx.send(embed=embed)
+    except:
+        pass
 
 @bot.command()
 async def balance(ctx, member: discord.Member = None):
@@ -2478,6 +2481,7 @@ async def on_message(message):
         
         # Sende den Witz
         await message.channel.send(embed=embed)
+        return  # Beende hier, keine weiteren Befehle verarbeiten
     elif is_counting_channel:
         channel_id, last_number, last_user_id = counting_result
         
