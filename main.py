@@ -34,80 +34,34 @@ intents.members = True
 intents.message_content = True
 
 class HorseRace:
-    def __init__(self):
+    def __init__(self, bet_amount: int, user_id: int):
+        self.bet_amount = bet_amount
+        self.user_id = user_id
+        self.track_length = 10  # Kürzere Strecke
         self.horses = {
-            "1": {"name": "Blitz", "emoji": "🐎", "position": 0, "speed": 1.2, "place": None},
-            "2": {"name": "Thunder", "emoji": "🦄", "position": 0, "speed": 1.1, "place": None},
-            "3": {"name": "Star", "emoji": "🏇", "position": 0, "speed": 1.0, "place": None},
-            "4": {"name": "Lucky", "emoji": "🐴", "position": 0, "speed": 0.9, "place": None},
-            "5": {"name": "Rainbow", "emoji": "🦓", "position": 0, "speed": 0.8, "place": None}
+            "🐎": 0,  # Braunes Pferd
+            "🦄": 0,  # Einhorn
+            "🐴": 0,  # Weißes Pferd
         }
-        self.track_length = 15  # Kürzere Rennstrecke
-        self.running = False
-        self.finished_horses = 0
-        
-    def reset(self):
-        for horse in self.horses.values():
-            horse["position"] = 0
-            horse["place"] = None
-        self.running = False
-        self.finished_horses = 0
-        
+        self.winner = None
+        self.message = None
+
     def move_horses(self):
-        if not self.running:
-            return False
-            
-        moved = False
-        for horse in self.horses.values():
-            if horse["place"] is not None:
-                continue
-                
-            if random.random() < horse["speed"] * 0.3:
-                horse["position"] += random.randint(1, 3)
-                moved = True
-                
-                if horse["position"] >= self.track_length:
-                    self.finished_horses += 1
-                    horse["place"] = self.finished_horses
-                    if self.finished_horses >= 3:  # Rennen endet nach 3 Pferden
-                        self.running = False
-                        return False
-        return moved
-        
+        for horse in self.horses:
+            # Schnellere Bewegung: 1-4 Felder pro Zug
+            self.horses[horse] += random.randint(1, 4)
+            if self.horses[horse] >= self.track_length and not self.winner:
+                self.winner = horse
+
     def get_track_display(self):
-        display = ["🎪 **PFERDERENNEN** 🎪\n\n"]
-        
-        # Füge Legende hinzu
-        display.append("**Pferde und ihre Chancen:**\n")
-        for num, horse in self.horses.items():
-            medal = ""
-            if horse["place"]:
-                medal = {1: "🥇", 2: "🥈", 3: "🥉"}.get(horse["place"], "")
-            display.append(f"`{num}.` {horse['name']} {horse['emoji']} - {horse['speed']}x Speed {medal}\n")
-        
-        display.append("\n**🏁 RENNSTRECKE:**\n")
-        display.append("```")
-        
-        # Zeige Rennstrecke für jedes Pferd
-        for num, horse in self.horses.items():
-            pos = horse["position"]
-            
-            # Erstelle die Rennstrecke
+        display = ""
+        for horse, position in self.horses.items():
             track = "." * self.track_length
-            if pos > 0:
-                track = "." * (pos - 1) + horse["emoji"] + "." * (self.track_length - pos)
-            else:
-                track = horse["emoji"] + "." * (self.track_length - 1)
-            
-            # Füge Start- und Ziellinie hinzu
-            track = "🏁" + track + "🏁"
-            
-            # Füge Pferdenummer und Name hinzu
-            place_str = f" [{horse['place']}.]" if horse["place"] else ""
-            display.append(f"{num}. {horse['name']:<8}{track}{place_str}\n")
-        
-        display.append("```")
-        return "".join(display)
+            if position > self.track_length:
+                position = self.track_length
+            track = track[:position] + horse + track[position + 1:]
+            display += f"{track}\n"
+        return f"```\n{display}```"
 
 class CustomBot(commands.Bot):
     def __init__(self):
@@ -1040,7 +994,7 @@ class WheelView(View):
         self.current_frame = 0
 
     @discord.ui.button(label="Drehen 🎡", style=discord.ButtonStyle.green)
-    async def spin(self, interaction: discord.Interaction, button: Button):
+    async def spin(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.player_id:
             await interaction.response.send_message("Das ist nicht dein Spiel!", ephemeral=True)
             return
@@ -1188,276 +1142,195 @@ class SlotsGame:
         return 0, "Keine Gewinnkombination"
 
 class SlotsView(View):
-    def __init__(self, bet: int, player_id: int, ctx):
-        super().__init__(timeout=None)
-        self.bet = bet
-        self.player_id = player_id
+    def __init__(self, bet_amount: int, user_id: int, ctx):
+        super().__init__(timeout=30)  # 30 Sekunden Timeout
+        self.bet_amount = bet_amount
+        self.user_id = user_id
         self.ctx = ctx
         self.message = None
-        self.slots = SlotsGame()
         self.spinning = False
-        
-        # Animations-Frames
-        self.symbols = list(self.slots.symbols.keys())
-        self.current_frame = 0
-    
-    def get_random_reel(self) -> str:
-        return " ".join(random.choices(self.symbols, k=3))
-    
-    @discord.ui.button(label="Drehen 🎰", style=discord.ButtonStyle.green)
+
+    async def start(self):
+        embed = discord.Embed(
+            title="🎰 Spielautomat",
+            description=f"Einsatz: {self.bet_amount} Coins\n\n"
+                      "**Gewinne:**\n"
+                      "💎 Diamant: 50x\n"
+                      "7️⃣ Sieben: 20x\n"
+                      "🍀 Kleeblatt: 10x\n"
+                      "⭐ Stern: 5x\n"
+                      "🔔 Glocke: 3x\n"
+                      "🍒 Kirsche: 2x\n"
+                      "🍋 Zitrone: 1.5x\n\n"
+                      "Drücke 'Drehen' zum Starten!",
+            color=discord.Color.gold()
+        )
+        self.message = await self.ctx.send(embed=embed, view=self)
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user != self.ctx.author:
+            await interaction.response.send_message("❌ Das ist nicht dein Spiel!", ephemeral=True)
+            return False
+        return True
+
+    async def on_timeout(self):
+        for item in self.children:
+            item.disabled = True
+        if self.message:
+            await self.message.edit(view=self)
+
+    @discord.ui.button(label="Drehen", style=discord.ButtonStyle.success, emoji="🎰")
     async def spin(self, interaction: discord.Interaction, button: Button):
-        if interaction.user.id != self.player_id:
-            await interaction.response.send_message("Das ist nicht dein Spiel!", ephemeral=True)
-            return
-        
         if self.spinning:
-            await interaction.response.send_message("Die Walzen drehen sich bereits!", ephemeral=True)
+            await interaction.response.send_message("❌ Die Walzen drehen sich bereits!", ephemeral=True)
             return
 
         self.spinning = True
         button.disabled = True
-        await interaction.response.defer()
+        await interaction.response.edit_message(view=self)
 
-        # Animation der sich drehenden Walzen
-        for i in range(8):  # 8 Frames Animation
-            speed = min(0.8, 0.2 + (i * 0.1))  # Wird langsamer
-            
-            reel1 = self.get_random_reel()
-            reel2 = self.get_random_reel()
-            reel3 = self.get_random_reel()
-            
-            display = (
-                "╔══════ SLOTS ══════╗\n"
-                f"║  {reel1}  ║\n"
-                f"║➤ {reel2}  ║ ← \n"
-                f"║  {reel3}  ║\n"
-                "╚══════════════════╝"
-            )
-            
+        symbols = ["💎", "7️⃣", "🍀", "⭐", "🔔", "🍒", "🍋"]
+        weights = [1, 2, 3, 4, 5, 6, 7]  # Seltenere Symbole = höhere Gewinne
+        
+        # Animation der Walzen
+        for _ in range(3):
+            temp_result = random.choices(symbols, weights=weights, k=3)
+            display = f"┃ {' '.join(temp_result)} ┃"
             embed = discord.Embed(
                 title="🎰 Spielautomat",
-                description=display,
+                description=f"Die Walzen drehen sich...\n\n{display}",
                 color=discord.Color.gold()
             )
-            embed.add_field(
-                name="💰 Einsatz",
-                value=f"**{self.bet}** Coins",
-                inline=False
+            await self.message.edit(embed=embed)
+            await asyncio.sleep(0.5)
+
+        # Endgültiges Ergebnis
+        result = random.choices(symbols, weights=weights, k=3)
+        display = f"┃ {' '.join(result)} ┃"
+
+        # Prüfe auf Gewinn
+        if len(set(result)) == 1:  # Alle gleich
+            symbol = result[0]
+            multipliers = {"💎": 50, "7️⃣": 20, "🍀": 10, "⭐": 5, "🔔": 3, "🍒": 2, "🍋": 1.5}
+            winnings = int(self.bet_amount * multipliers[symbol])
+            update_coins(self.user_id, winnings)
+            embed = discord.Embed(
+                title="🎰 JACKPOT! 🎉",
+                description=f"{display}\n\n**Gewonnen!** Du bekommst {winnings} Coins!",
+                color=discord.Color.green()
             )
-            await self.message.edit(embed=embed, view=self)
-            await asyncio.sleep(speed)
+        elif len(set(result)) == 2:  # Zwei gleich
+            winnings = int(self.bet_amount * 0.5)
+            update_coins(self.user_id, winnings)
+            embed = discord.Embed(
+                title="🎰 Gewonnen! 🎉",
+                description=f"{display}\n\n**Zwei gleiche Symbole!** Du bekommst {winnings} Coins!",
+                color=discord.Color.blue()
+            )
+        else:
+            embed = discord.Embed(
+                title="🎰 Verloren! 😢",
+                description=f"{display}\n\nLeider keine Gewinnkombination!",
+                color=discord.Color.red()
+            )
 
-        # Endergebnis
-        result = self.slots.spin()
-        multiplier, combo_text = self.slots.get_win_multiplier(result)
-        winnings = int(self.bet * multiplier)
-        
-        # Finale Animation
-        display = (
-            "╔══════ SLOTS ══════╗\n"
-            f"║  {' '.join(self.get_random_reel())}  ║\n"
-            f"║➤ {' '.join(result)}  ║ ← \n"
-            f"║  {' '.join(self.get_random_reel())}  ║\n"
-            "╚══════════════════╝"
-        )
-        
-        description = (
-            f"{display}\n\n"
-            f"**{combo_text}**\n"
-            f"{'🎉 Gewonnen!' if multiplier > 0 else '😢 Verloren!'}\n"
-            f"Multiplikator: **{multiplier}x**\n"
-            f"{'Gewinn' if multiplier > 0 else 'Verlust'}: **{abs(winnings - self.bet)}** Coins"
-        )
-        
-        embed = discord.Embed(
-            title="🎰 Spielautomat - Ergebnis",
-            description=description,
-            color=discord.Color.green() if multiplier > 0 else discord.Color.red()
-        )
-        
-        # Aktualisiere Coins
-        if multiplier > 0:
-            update_coins(self.player_id, winnings)
-        
-        self.clear_items()
-        await self.message.edit(embed=embed, view=self)
-
-    async def start(self):
-        # Zeige initiales Display
-        display = (
-            "╔══════ SLOTS ══════╗\n"
-            "║  🎰 🎰 🎰  ║\n"
-            "║➤ 🎯 🎯 🎯  ║ ← \n"
-            "║  🎰 🎰 🎰  ║\n"
-            "╚══════════════════╝"
-        )
-        
-        embed = discord.Embed(
-            title="🎰 Spielautomat",
-            description=f"{display}\n\n"
-                      "**Gewinnkombinationen:**\n"
-                      "3x 💎 = 50.0x\n"
-                      "3x 7️⃣ = 20.0x\n"
-                      "3x 🍀 = 10.0x\n"
-                      "3x ⭐ = 5.0x\n"
-                      "3x 🔔 = 3.0x\n"
-                      "3x 🍒 = 2.0x\n"
-                      "3x 🍋 = 1.5x\n\n"
-                      "2 gleiche Symbole = 0.5x des normalen Gewinns",
-            color=discord.Color.gold()
-        )
-        embed.add_field(
-            name="💰 Einsatz",
-            value=f"**{self.bet}** Coins",
-            inline=False
-        )
-        self.message = await self.ctx.send(embed=embed, view=self)
+        await self.message.edit(embed=embed)
 
 @bot.command()
-async def slots(ctx, bet: int = None):
-    if not bet:
+async def slots(ctx, bet_amount: int = None):
+    if not bet_amount:
         embed = discord.Embed(
             title="🎰 Spielautomat",
-            description="Drehe am einarmigen Banditen!\n\n"
-                      "**Gewinnkombinationen:**\n"
-                      "• 3x 💎 = 50.0x\n"
-                      "• 3x 7️⃣ = 20.0x\n"
-                      "• 3x 🍀 = 10.0x\n"
-                      "• 3x ⭐ = 5.0x\n"
-                      "• 3x 🔔 = 3.0x\n"
-                      "• 3x 🍒 = 2.0x\n"
-                      "• 3x 🍋 = 1.5x\n"
-                      "• 2 gleiche = 0.5x des normalen Gewinns\n\n"
+            description="Drehe am Spielautomaten!\n\n"
+                      "**Gewinne:**\n"
+                      "💎 Diamant: 50x\n"
+                      "7️⃣ Sieben: 20x\n"
+                      "🍀 Kleeblatt: 10x\n"
+                      "⭐ Stern: 5x\n"
+                      "🔔 Glocke: 3x\n"
+                      "🍒 Kirsche: 2x\n"
+                      "🍋 Zitrone: 1.5x\n\n"
                       "**Verwendung:**\n"
-                      "`!slots <einsatz>`",
+                      "`!slots <einsatz>`\n"
+                      "Beispiel: `!slots 100`",
             color=discord.Color.gold()
         )
         await ctx.send(embed=embed)
         return
 
-    if bet < 50:
-        await ctx.send("❌ Der Minimaleinsatz ist 50 Coins!")
+    if bet_amount < 1:
+        await ctx.send("❌ Der Mindesteinsatz ist 1 Coin!")
         return
 
-    user_coins = get_coins(ctx.author.id)
-    if user_coins < bet:
+    balance = get_coins(ctx.author.id)
+    if balance < bet_amount:
         await ctx.send("❌ Du hast nicht genug Coins!")
         return
 
-    # Ziehe Einsatz ab
-    update_coins(ctx.author.id, -bet)
-
-    # Starte Spiel
-    view = SlotsView(bet, ctx.author.id, ctx)
+    update_coins(ctx.author.id, -bet_amount)
+    view = SlotsView(bet_amount, ctx.author.id, ctx)
     await view.start()
 
 # Pferderennen Command
 @bot.command()
-async def horserace(ctx, bet_amount: int = None, horse_number: str = None):
-    if not bet_amount or not horse_number or horse_number not in "12345":
+async def horserace(ctx, bet_amount: int = None, horse: str = None):
+    valid_horses = {"braun": "🐎", "einhorn": "🦄", "weiss": "🐴"}
+    
+    if not bet_amount or not horse or horse.lower() not in valid_horses:
         embed = discord.Embed(
-            title="🐎 Pferderennen",
-            description="Wette auf dein Lieblingspferd!\n\n"
-                      "**Verfügbare Pferde:**\n"
-                      "1. Blitz  (Sehr schnell)\n"
-                      "2. Thunder  (Schnell)\n"
-                      "3. Star  (Normal)\n"
-                      "4. Lucky  (Langsam, aber glücklich)\n"
-                      "5. Rainbow  (Langsam, hoher Gewinn)\n\n"
+            title="🏇 Pferderennen",
+            description="Wette auf ein Pferd!\n\n"
+                      "**Pferde:**\n"
+                      "🐎 Braunes Pferd (braun)\n"
+                      "🦄 Einhorn (einhorn)\n"
+                      "🐴 Weißes Pferd (weiss)\n\n"
+                      "**Gewinne:**\n"
+                      "• Gewinner: 3x Einsatz\n\n"
                       "**Verwendung:**\n"
-                      "`!horserace <einsatz> <pferd-nummer>`\n\n"
-                      "**Gewinnchancen:**\n"
-                      "Je langsamer das Pferd, desto höher der Gewinn!",
+                      "`!horserace <einsatz> <pferd>`\n"
+                      "Beispiel: `!horserace 100 einhorn`",
             color=discord.Color.gold()
         )
         await ctx.send(embed=embed)
         return
 
-    bet_amount = int(bet_amount)
-    if bet_amount < 50:
-        await ctx.send(" Minimaleinsatz ist 50 Coins!")
+    if bet_amount < 1:
+        await ctx.send("❌ Der Mindesteinsatz ist 1 Coin!")
         return
 
-    user_coins = get_coins(ctx.author.id)
-    if user_coins < bet_amount:
-        await ctx.send(" Du hast nicht genug Coins für diese Wette!")
+    balance = get_coins(ctx.author.id)
+    if balance < bet_amount:
+        await ctx.send("❌ Du hast nicht genug Coins!")
         return
 
-    # Starte neues Rennen wenn keins läuft
-    if ctx.channel.id not in bot.horse_races or not bot.horse_races[ctx.channel.id].running:
-        bot.horse_races[ctx.channel.id] = HorseRace()
-        race = bot.horse_races[ctx.channel.id]
-        race.running = True
-        
-        # Speichere Wette
-        race_id = f"{ctx.channel.id}-{int(time.time())}"
-        with sqlite3.connect(bot.db_path) as conn:
-            c = conn.cursor()
-            c.execute('INSERT INTO horse_bets (race_id, user_id, horse_id, amount) VALUES (?, ?, ?, ?)',
-                     (race_id, ctx.author.id, horse_number, bet_amount))
-            conn.commit()
+    update_coins(ctx.author.id, -bet_amount)
+    chosen_horse = valid_horses[horse.lower()]
+    race = HorseRace(bet_amount, ctx.author.id)
 
-        # Ziehe Einsatz ab
-        update_coins(ctx.author.id, -bet_amount)
+    embed = discord.Embed(
+        title="🏇 Pferderennen",
+        description=f"Das Rennen beginnt!\nDeine Wette: {chosen_horse}\n\n{race.get_track_display()}",
+        color=discord.Color.gold()
+    )
+    race.message = await ctx.send(embed=embed)
 
-        # Sende Start-Nachricht
-        embed = discord.Embed(
-            title="🐎 Pferderennen startet!",
-            description=f"{ctx.author.mention} wettet **{bet_amount}** Coins auf {race.horses[horse_number]['name']}!\n\n"
-                      f"Das Rennen beginnt in 5 Sekunden...",
-            color=discord.Color.blue()
-        )
-        start_msg = await ctx.send(embed=embed)
-        await asyncio.sleep(5)
+    while not race.winner:
+        race.move_horses()
+        embed.description = f"Das Rennen läuft!\nDeine Wette: {chosen_horse}\n\n{race.get_track_display()}"
+        await race.message.edit(embed=embed)
+        await asyncio.sleep(0.3)  # Schnellere Updates
 
-        # Rennen-Animation
-        race_msg = None
-        while race.running:
-            if race.move_horses():
-                embed = discord.Embed(
-                    title="🐎 Pferderennen",
-                    description=race.get_track_display(),
-                    color=discord.Color.blue()
-                )
-                if race_msg:
-                    await race_msg.edit(embed=embed)
-                else:
-                    race_msg = await ctx.send(embed=embed)
-                await asyncio.sleep(0.5)
-
-        # Gewinner verkünden
-        multiplier = {"1": 1.5, "2": 2.0, "3": 2.5, "4": 3.0, "5": 4.0}
-        winner_horse_id = next(k for k, v in race.horses.items() if v["name"] == race.winner)
-        
-        # Hole alle Wetten für dieses Rennen
-        with sqlite3.connect(bot.db_path) as conn:
-            c = conn.cursor()
-            c.execute('SELECT user_id, horse_id, amount FROM horse_bets WHERE race_id = ?', (race_id,))
-            bets = c.fetchall()
-
-        # Verarbeite Gewinne
-        winners_text = ""
-        for user_id, bet_horse_id, amount in bets:
-            bettor = ctx.guild.get_member(user_id)
-            if bet_horse_id == winner_horse_id:
-                winnings = int(amount * multiplier[bet_horse_id])
-                update_coins(user_id, winnings)
-                winners_text += f" {bettor.mention} gewinnt **{winnings}** Coins!\n"
-            else:
-                winners_text += f" {bettor.mention} verliert **{amount}** Coins!\n"
-
-        embed = discord.Embed(
-            title=f" {race.winner} gewinnt das Rennen!",
-            description=f"{race.get_track_display()}\n\n"
-                      f"**Ergebnisse:**\n{winners_text}",
-            color=discord.Color.gold()
-        )
-        await ctx.send(embed=embed)
-        
-        # Reset für nächstes Rennen
-        race.reset()
+    # Zeige Ergebnis
+    if race.winner == chosen_horse:
+        winnings = bet_amount * 3
+        update_coins(ctx.author.id, winnings)
+        embed.description = f"**Gewonnen!** 🎉\nDein Pferd {chosen_horse} hat gewonnen!\nDu bekommst {winnings} Coins!\n\n{race.get_track_display()}"
+        embed.color = discord.Color.green()
     else:
-        await ctx.send(" Es läuft bereits ein Rennen in diesem Channel!")
+        embed.description = f"**Verloren!** 😢\n{race.winner} hat gewonnen!\nDein Pferd: {chosen_horse}\n\n{race.get_track_display()}"
+        embed.color = discord.Color.red()
+
+    await race.message.edit(embed=embed)
 
 class RouletteGame:
     def __init__(self):
@@ -1498,212 +1371,220 @@ class RouletteGame:
         return False, 0
 
 class RouletteView(View):
-    def __init__(self, bet: int, player_id: int, ctx):
-        super().__init__(timeout=None)
-        self.bet = bet
-        self.player_id = player_id
+    def __init__(self, bet_amount: int, user_id: int, ctx):
+        super().__init__(timeout=30)  # 30 Sekunden Timeout
+        self.bet_amount = bet_amount
+        self.user_id = user_id
         self.ctx = ctx
         self.message = None
-        self.roulette = RouletteGame()
         self.spinning = False
-        self.bet_type = None
-        self.bet_value = None
-        
-        # Füge Wett-Buttons hinzu
-        self.add_bet_buttons()
-    
-    def add_bet_buttons(self):
-        # Erste Reihe: Farben
-        self.add_item(Button(label="Rot ", custom_id="color_red", style=discord.ButtonStyle.red))
-        self.add_item(Button(label="Schwarz ", custom_id="color_black", style=discord.ButtonStyle.gray))
-        
-        # Zweite Reihe: Gerade/Ungerade und Hälften
-        self.add_item(Button(label="Gerade 2", custom_id="even_odd_even", style=discord.ButtonStyle.blurple))
-        self.add_item(Button(label="Ungerade 1", custom_id="even_odd_odd", style=discord.ButtonStyle.blurple))
-        self.add_item(Button(label="1-18", custom_id="half_first", style=discord.ButtonStyle.gray))
-        self.add_item(Button(label="19-36", custom_id="half_second", style=discord.ButtonStyle.gray))
-        
-        # Dritte Reihe: Dutzende
-        self.add_item(Button(label="1-12", custom_id="dozen_0", style=discord.ButtonStyle.green))
-        self.add_item(Button(label="13-24", custom_id="dozen_1", style=discord.ButtonStyle.green))
-        self.add_item(Button(label="25-36", custom_id="dozen_2", style=discord.ButtonStyle.green))
-    
-    async def update_message(self):
-        wheel_display = (
-            " ROULETTE \n"
-            "╔════════════════╗\n"
-            "║ 00  03  06 ║\n"
-            "║ 27  30  33 ║\n"
-            "║ 02  05  08 ║\n"
-            "║    ...mehr...   ║\n"
-            "╚════════════════╝"
-        )
-        
+
+    async def start(self):
         embed = discord.Embed(
-            title=" ROULETTE",
-            description=f"{wheel_display}\n\n"
-                      "**Wettmöglichkeiten:**\n"
-                      "• Rot/Schwarz (2x)\n"
-                      "• Gerade/Ungerade (2x)\n"
-                      "• 1-18/19-36 (2x)\n"
-                      "• Dutzend (3x)\n"
-                      "• Einzelne Zahl (35x)",
+            title="🎲 Roulette",
+            description=f"Einsatz: {self.bet_amount} Coins\n\n"
+                      "**Wetten:**\n"
+                      "🔴 Rot (2x)\n"
+                      "⚫ Schwarz (2x)\n"
+                      "🟢 Grün (14x)\n"
+                      "🔢 Gerade/Ungerade (2x)\n\n"
+                      "Wähle deine Wette!",
             color=discord.Color.gold()
         )
-        embed.add_field(
-            name="💰 Einsatz",
-            value=f"**{self.bet}** Coins",
-            inline=False
-        )
-        
-        if not self.message:
-            self.message = await self.ctx.send(embed=embed, view=self)
-        else:
-            await self.message.edit(embed=embed, view=self)
-    
-    async def spin_animation(self):
-        frames = []
-        # Generiere 8 zufällige Frames für die Animation
-        for _ in range(8):
-            numbers = [self.roulette.get_number_display(self.roulette.spin()) for _ in range(6)]
-            frame = (
-                " ROULETTE \n"
-                "╔════════════════╗\n"
-                f"║ {numbers[0]} {numbers[1]} {numbers[2]} ║\n"
-                f"║ {numbers[3]} {numbers[4]} {numbers[5]} ║\n"
-                "║     ⬇️ ⬇️ ⬇️     ║\n"
-                "╚════════════════╝"
-            )
-            frames.append(frame)
-        
-        # Zeige Animation
-        for i in range(len(frames)):
-            speed = min(1.0, 0.2 + (i * 0.1))
-            embed = discord.Embed(
-                title=" ROULETTE - Kugel rollt...",
-                description=frames[i],
-                color=discord.Color.gold()
-            )
-            await self.message.edit(embed=embed)
-            await asyncio.sleep(speed)
-
-    async def handle_bet(self, interaction: discord.Interaction):
-        if interaction.custom_id:
-            await self.handle_bet(interaction)
-        return True
+        self.message = await self.ctx.send(embed=embed, view=self)
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if interaction.custom_id:
-            await self.handle_bet(interaction)
+        if interaction.user != self.ctx.author:
+            await interaction.response.send_message("❌ Das ist nicht dein Spiel!", ephemeral=True)
+            return False
         return True
 
-    async def handle_bet(self, interaction: discord.Interaction):
-        if interaction.user.id != self.player_id:
-            await interaction.response.send_message("Das ist nicht dein Spiel!", ephemeral=True)
-            return
-        
+    async def on_timeout(self):
+        for item in self.children:
+            item.disabled = True
+        if self.message:
+            await self.message.edit(view=self)
+
+    @discord.ui.button(label="Rot", style=discord.ButtonStyle.danger, emoji="🔴", row=0)
+    async def red(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.spin_roulette(interaction, "Rot")
+
+    @discord.ui.button(label="Schwarz", style=discord.ButtonStyle.secondary, emoji="⚫", row=0)
+    async def black(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.spin_roulette(interaction, "Schwarz")
+
+    @discord.ui.button(label="Grün", style=discord.ButtonStyle.success, emoji="🟢", row=0)
+    async def green(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.spin_roulette(interaction, "Grün")
+
+    @discord.ui.button(label="Gerade", style=discord.ButtonStyle.primary, emoji="2️⃣", row=1)
+    async def even(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.spin_roulette(interaction, "Gerade")
+
+    @discord.ui.button(label="Ungerade", style=discord.ButtonStyle.primary, emoji="1️⃣", row=1)
+    async def odd(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.spin_roulette(interaction, "Ungerade")
+
+    async def spin_roulette(self, interaction: discord.Interaction, bet_type: str):
         if self.spinning:
-            await interaction.response.send_message("Das Rad dreht sich bereits!", ephemeral=True)
+            await interaction.response.send_message("❌ Das Rad dreht sich bereits!", ephemeral=True)
             return
 
-        # Parse bet type and value from button custom_id
-        bet_type, bet_value = interaction.custom_id.split("_")
-        self.bet_type = bet_type
-        self.bet_value = bet_value
-        
         self.spinning = True
         for item in self.children:
             item.disabled = True
-        await interaction.response.defer()
+        await interaction.response.edit_message(view=self)
 
-        # Animation
-        await self.spin_animation()
+        # Roulette Animation
+        numbers = list(range(0, 37))
+        colors = {0: "🟢"}
+        for i in range(1, 37):
+            colors[i] = "🔴" if i in [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36] else "⚫"
+
+        embed = discord.Embed(title="🎲 Roulette", color=discord.Color.gold())
+        embed.add_field(name="Deine Wette", value=bet_type)
+        embed.add_field(name="Einsatz", value=f"{self.bet_amount} Coins")
+
+        # Dreh-Animation
+        for _ in range(3):
+            temp_number = random.choice(numbers)
+            embed.description = f"Das Rad dreht sich... {colors[temp_number]} {temp_number}"
+            await self.message.edit(embed=embed)
+            await asyncio.sleep(0.7)
+
+        # Endergebnis
+        result = random.choice(numbers)
+        result_color = colors[result]
         
-        # Ergebnis
-        result = self.roulette.spin()
-        won, multiplier = self.roulette.check_bet(bet_type, bet_value, result)
-        winnings = int(self.bet * multiplier)
+        won = False
+        winnings = 0
         
-        # Ergebnis anzeigen
-        result_display = (
-            " ROULETTE \n"
-            "╔════════════════╗\n"
-            "║                ║\n"
-            f"║      {self.roulette.get_number_display(result)}      ║\n"
-            "║                ║\n"
-            "╚════════════════╝"
-        )
-        
-        description = (
-            f"{result_display}\n\n"
-            f"Kugel landet auf: **{self.roulette.get_number_display(result)}**\n"
-            f"Deine Wette: **{self.get_bet_description()}**\n\n"
-            f"{' Gewonnen!' if won else ' Verloren!'}\n"
-            f"{'Gewinn' if won else 'Verlust'}: **{abs(winnings - self.bet)}** Coins"
-        )
-        
-        embed = discord.Embed(
-            title=" ROULETTE - Ergebnis",
-            description=description,
-            color=discord.Color.green() if won else discord.Color.red()
-        )
-        
-        # Aktualisiere Coins
+        # Prüfe Gewinn
+        if bet_type == "Rot" and result_color == "🔴":
+            won = True
+            winnings = self.bet_amount * 2
+        elif bet_type == "Schwarz" and result_color == "⚫":
+            won = True
+            winnings = self.bet_amount * 2
+        elif bet_type == "Grün" and result_color == "🟢":
+            won = True
+            winnings = self.bet_amount * 14
+        elif bet_type == "Gerade" and result != 0 and result % 2 == 0:
+            won = True
+            winnings = self.bet_amount * 2
+        elif bet_type == "Ungerade" and result != 0 and result % 2 == 1:
+            won = True
+            winnings = self.bet_amount * 2
+
         if won:
-            update_coins(self.player_id, winnings)
-        
-        self.clear_items()
-        await self.message.edit(embed=embed, view=self)
-    
-    def get_bet_description(self) -> str:
-        if self.bet_type == "color":
-            return "Rot" if self.bet_value == "red" else "Schwarz"
-        elif self.bet_type == "even_odd":
-            return "Gerade" if self.bet_value == "even" else "Ungerade"
-        elif self.bet_type == "half":
-            return "1-18" if self.bet_value == "first" else "19-36"
-        elif self.bet_type == "dozen":
-            dozens = ["1-12", "13-24", "25-36"]
-            return dozens[int(self.bet_value)]
-        return "Unbekannt"
-    
-    async def start(self):
-        await self.update_message()
+            update_coins(self.user_id, winnings)
+            embed.description = f"**Gewonnen!** 🎉\n{result_color} {result}\nDu bekommst {winnings} Coins!"
+            embed.color = discord.Color.green()
+        else:
+            embed.description = f"**Verloren!** 😢\n{result_color} {result}"
+            embed.color = discord.Color.red()
+
+        await self.message.edit(embed=embed)
 
 @bot.command()
-async def roulette(ctx, bet: int = None):
-    if not bet:
+async def roulette(ctx, bet_amount: int = None):
+    if not bet_amount:
         embed = discord.Embed(
-            title=" ROULETTE",
-            description="Setze auf eine Zahl oder eine Farbe!\n\n"
-                      "**Wettmöglichkeiten:**\n"
-                      "• Rot/Schwarz (2x)\n"
-                      "• Gerade/Ungerade (2x)\n"
-                      "• 1-18/19-36 (2x)\n"
-                      "• Dutzend (3x)\n"
-                      "• Einzelne Zahl (35x)\n\n"
+            title="🎲 Roulette",
+            description="Setze auf eine Farbe oder Zahl!\n\n"
+                      "**Wetten & Gewinne:**\n"
+                      "🔴 Rot: 2x\n"
+                      "⚫ Schwarz: 2x\n"
+                      "🟢 Grün (0): 14x\n"
+                      "2️⃣ Gerade: 2x\n"
+                      "1️⃣ Ungerade: 2x\n\n"
                       "**Verwendung:**\n"
-                      "`!roulette <einsatz>`",
+                      "`!roulette <einsatz>`\n"
+                      "Beispiel: `!roulette 100`",
             color=discord.Color.gold()
         )
         await ctx.send(embed=embed)
         return
 
-    if bet < 50:
-        await ctx.send(" Der Minimaleinsatz ist 50 Coins!")
+    if bet_amount < 1:
+        await ctx.send("❌ Der Mindesteinsatz ist 1 Coin!")
         return
 
-    user_coins = get_coins(ctx.author.id)
-    if user_coins < bet:
-        await ctx.send(" Du hast nicht genug Coins!")
+    balance = get_coins(ctx.author.id)
+    if balance < bet_amount:
+        await ctx.send("❌ Du hast nicht genug Coins!")
         return
 
-    # Ziehe Einsatz ab
-    update_coins(ctx.author.id, -bet)
-
-    # Starte Spiel
-    view = RouletteView(bet, ctx.author.id, ctx)
+    update_coins(ctx.author.id, -bet_amount)
+    view = RouletteView(bet_amount, ctx.author.id, ctx)
     await view.start()
+
+class CoinflipView(View):
+    def __init__(self, bet_amount: int, user_id: int, ctx):
+        super().__init__(timeout=30)  # 30 Sekunden Timeout
+        self.bet_amount = bet_amount
+        self.user_id = user_id
+        self.ctx = ctx
+        self.message = None
+
+    async def start(self):
+        embed = discord.Embed(
+            title="🎰 Coinflip",
+            description=f"Wähle Kopf oder Zahl!\nEinsatz: {self.bet_amount} Coins",
+            color=discord.Color.gold()
+        )
+        self.message = await self.ctx.send(embed=embed, view=self)
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user != self.ctx.author:
+            await interaction.response.send_message("❌ Das ist nicht dein Spiel!", ephemeral=True)
+            return False
+        return True
+
+    async def on_timeout(self):
+        for item in self.children:
+            item.disabled = True
+        if self.message:
+            await self.message.edit(view=self)
+
+    @discord.ui.button(label="Kopf", style=discord.ButtonStyle.primary, emoji="👑")
+    async def heads_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.flip_coin(interaction, "Kopf")
+
+    @discord.ui.button(label="Zahl", style=discord.ButtonStyle.primary, emoji="🔢")
+    async def tails_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.flip_coin(interaction, "Zahl")
+
+    async def flip_coin(self, interaction: discord.Interaction, choice: str):
+        # Deaktiviere Buttons sofort
+        for item in self.children:
+            item.disabled = True
+        await interaction.response.edit_message(view=self)
+
+        # Münzwurf Animation
+        result = random.choice(["Kopf", "Zahl"])
+        embed = discord.Embed(title="🎰 Coinflip", color=discord.Color.gold())
+        embed.add_field(name="Deine Wahl", value=choice)
+        embed.add_field(name="Einsatz", value=f"{self.bet_amount} Coins")
+
+        # Animiere den Münzwurf
+        for _ in range(3):
+            embed.description = "Münze wird geworfen... 🔄"
+            await self.message.edit(embed=embed)
+            await asyncio.sleep(0.5)
+
+        # Zeige Ergebnis
+        if choice == result:
+            winnings = self.bet_amount * 2
+            update_coins(self.user_id, winnings)
+            embed.description = f"**Gewonnen!** 🎉\nDu hast {winnings} Coins gewonnen!"
+            embed.color = discord.Color.green()
+        else:
+            embed.description = f"**Verloren!** 😢\nDie Münze zeigt {result}!"
+            embed.color = discord.Color.red()
+
+        embed.add_field(name="Ergebnis", value=result, inline=False)
+        await self.message.edit(embed=embed)
 
 @bot.command()
 async def coinflip(ctx, bet_amount: int = None, number: int = None):
@@ -1731,130 +1612,151 @@ async def coinflip(ctx, bet_amount: int = None, number: int = None):
         await ctx.send("❌ Du hast nicht genug Coins!")
         return
 
-    # Ziehe Einsatz ab
     update_coins(ctx.author.id, -bet_amount)
 
     # Starte Spiel
     view = CoinflipView(bet_amount, ctx.author.id, ctx)
     await view.start()
 
-class CoinflipView(View):
-    def __init__(self, bet: int, player_id: int, ctx):
-        super().__init__(timeout=None)
-        self.bet = bet
-        self.player_id = player_id
+class ScratchView(View):
+    def __init__(self, bet_amount: int, user_id: int, ctx):
+        super().__init__(timeout=30)  # 30 Sekunden Timeout
+        self.bet_amount = bet_amount
+        self.user_id = user_id
         self.ctx = ctx
         self.message = None
-        self.flipping = False
-        
-        # Animations-Frames für die Münze
-        self.frames = [
-            "  _______________\n /      KOPF     \\ \n|    ◕ 👑 ◕     |\n \\_______________/",
-            "      ▃▃▃▃▃\n    ▃╱     ╲▃\n   ╱         ╲\n   ╲         ╱\n    ▔╲     ╱▔\n      ▔▔▔▔",
-            "  _______________\n /      ZAHL     \\ \n|       💫       |\n \\_______________/",
-            "    ╱▔▔▔▔╲\n  ╱         ╲\n ╱           ╲\n  ╲           ╱\n   ╲         ╱\n    ╲▁▁▁▁▁╱"
-        ]
-    
-    @discord.ui.button(label="Kopf 👑", style=discord.ButtonStyle.blurple, custom_id="heads")
-    async def heads(self, interaction: discord.Interaction, button: Button):
-        await self.flip(interaction, "heads")
-    
-    @discord.ui.button(label="Zahl 💫", style=discord.ButtonStyle.gray, custom_id="tails")
-    async def tails(self, interaction: discord.Interaction, button: Button):
-        await self.flip(interaction, "tails")
-    
-    async def flip(self, interaction: discord.Interaction, choice: str):
-        if interaction.user.id != self.player_id:
-            await interaction.response.send_message("Das ist nicht dein Spiel!", ephemeral=True)
-            return
-        
-        if self.flipping:
-            await interaction.response.send_message("Die Münze wird bereits geworfen!", ephemeral=True)
-            return
+        self.revealed = 0
+        self.symbols = self.generate_symbols()
+        self.revealed_positions = []
 
-        self.flipping = True
-        for item in self.children:
-            item.disabled = True
-        await interaction.response.defer()
+    def generate_symbols(self):
+        symbols = ["💎", "🎰", "7️⃣", "⭐", "🍀"]
+        weights = [0.1, 0.2, 0.2, 0.2, 0.3]  # Seltenere Symbole = höhere Gewinne
+        return random.choices(symbols, weights=weights, k=9)
 
-        # Animation der Münze
-        for i in range(8):  # 8 Frames Animation
-            speed = min(0.8, 0.2 + (i * 0.1))  # Wird langsamer
-            frame = self.frames[i % len(self.frames)]
-            
-            embed = discord.Embed(
-                title="🎰 Coinflip",
-                description=f"```{frame}```",
-                color=discord.Color.gold()
-            )
-            embed.add_field(
-                name="💰 Einsatz",
-                value=f"**{self.bet}** Coins",
-                inline=True
-            )
-            embed.add_field(
-                name="🎯 Deine Wahl",
-                value=f"**{'Kopf' if choice == 'heads' else 'Zahl'}**",
-                inline=True
-            )
-            await self.message.edit(embed=embed, view=self)
-            await asyncio.sleep(speed)
-        
-        # Ergebnis
-        result = random.choice(["heads", "tails"])
-        won = choice == result
-        winnings = self.bet * 2 if won else 0
-        
-        # Zeige Endergebnis
-        final_frame = self.frames[0] if result == "heads" else self.frames[2]
-        description = (
-            f"```{final_frame}```\n\n"
-            f"Ergebnis: **{'Kopf' if result == 'heads' else 'Zahl'}**\n"
-            f"Deine Wahl: **{'Kopf' if choice == 'heads' else 'Zahl'}**\n\n"
-            f"{'🎉 Gewonnen!' if won else '😢 Verloren!'}\n"
-            f"{'Gewinn' if won else 'Verlust'}: **{abs(winnings - self.bet)}** Coins"
-        )
-        
-        embed = discord.Embed(
-            title="🎰 Coinflip - Ergebnis",
-            description=description,
-            color=discord.Color.green() if won else discord.Color.red()
-        )
-        
-        # Aktualisiere Coins
-        if won:
-            update_coins(self.player_id, winnings)
-        
-        self.clear_items()
-        await self.message.edit(embed=embed, view=self)
-    
     async def start(self):
         embed = discord.Embed(
-            title="🎰 Coinflip",
-            description=f"```{self.frames[0]}```\n\n"
-                      "Wähle **Kopf** oder **Zahl**!\n"
-                      "• Gewinn = 2x Einsatz\n"
-                      "• 50/50 Chance",
+            title="🎰 Rubbellos",
+            description=f"Rubble 3 Felder frei!\nEinsatz: {self.bet_amount} Coins\n\n"
+                      "**Gewinne:**\n"
+                      "💎 Diamant: 5x\n"
+                      "🎰 Slot: 4x\n"
+                      "7️⃣ Sieben: 3x\n"
+                      "⭐ Stern: 2x\n"
+                      "🍀 Kleeblatt: 1.5x",
             color=discord.Color.gold()
         )
-        embed.add_field(
-            name="💰 Einsatz",
-            value=f"**{self.bet}** Coins",
-            inline=False
-        )
         self.message = await self.ctx.send(embed=embed, view=self)
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user != self.ctx.author:
+            await interaction.response.send_message("❌ Das ist nicht dein Spiel!", ephemeral=True)
+            return False
+        return True
+
+    async def on_timeout(self):
+        for item in self.children:
+            item.disabled = True
+        if self.message:
+            await self.message.edit(view=self)
+
+    def create_grid(self):
+        grid = ""
+        for i in range(0, 9, 3):
+            row = []
+            for j in range(3):
+                pos = i + j
+                if pos in self.revealed_positions:
+                    row.append(self.symbols[pos])
+                else:
+                    row.append("❓")
+            grid += " ".join(row) + "\n"
+        return grid
+
+    @discord.ui.button(label="1", style=discord.ButtonStyle.secondary, row=0)
+    async def button_1(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.reveal(interaction, 0, button)
+
+    @discord.ui.button(label="2", style=discord.ButtonStyle.secondary, row=0)
+    async def button_2(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.reveal(interaction, 1, button)
+
+    @discord.ui.button(label="3", style=discord.ButtonStyle.secondary, row=0)
+    async def button_3(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.reveal(interaction, 2, button)
+
+    @discord.ui.button(label="4", style=discord.ButtonStyle.secondary, row=1)
+    async def button_4(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.reveal(interaction, 3, button)
+
+    @discord.ui.button(label="5", style=discord.ButtonStyle.secondary, row=1)
+    async def button_5(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.reveal(interaction, 4, button)
+
+    @discord.ui.button(label="6", style=discord.ButtonStyle.secondary, row=1)
+    async def button_6(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.reveal(interaction, 5, button)
+
+    @discord.ui.button(label="7", style=discord.ButtonStyle.secondary, row=2)
+    async def button_7(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.reveal(interaction, 6, button)
+
+    @discord.ui.button(label="8", style=discord.ButtonStyle.secondary, row=2)
+    async def button_8(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.reveal(interaction, 7, button)
+
+    @discord.ui.button(label="9", style=discord.ButtonStyle.secondary, row=2)
+    async def button_9(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.reveal(interaction, 8, button)
+
+    async def reveal(self, interaction: discord.Interaction, position: int, button: discord.ui.Button):
+        if self.revealed >= 3:
+            await interaction.response.send_message("❌ Du hast bereits 3 Felder aufgedeckt!", ephemeral=True)
+            return
+
+        self.revealed += 1
+        self.revealed_positions.append(position)
+        button.label = self.symbols[position]
+        button.disabled = True
+
+        embed = discord.Embed(
+            title="🎰 Rubbellos",
+            description=f"Noch {3-self.revealed} Felder übrig!\n\n{self.create_grid()}",
+            color=discord.Color.gold()
+        )
+
+        if self.revealed == 3:
+            # Prüfe auf Gewinn
+            revealed_symbols = [self.symbols[i] for i in self.revealed_positions]
+            if len(set(revealed_symbols)) == 1:  # Alle Symbole gleich
+                symbol = revealed_symbols[0]
+                multipliers = {"💎": 5, "🎰": 4, "7️⃣": 3, "⭐": 2, "🍀": 1.5}
+                winnings = int(self.bet_amount * multipliers[symbol])
+                update_coins(self.user_id, winnings)
+                embed.description = f"**Gewonnen!** 🎉\n{self.create_grid()}\n\nDu hast {winnings} Coins gewonnen!"
+                embed.color = discord.Color.green()
+            else:
+                embed.description = f"**Verloren!** 😢\n{self.create_grid()}"
+                embed.color = discord.Color.red()
+
+            # Deaktiviere alle Buttons
+            for child in self.children:
+                child.disabled = True
+
+        await interaction.response.edit_message(embed=embed, view=self)
 
 @bot.command()
 async def scratch(ctx, bet_amount: int = None):
     if not bet_amount:
         embed = discord.Embed(
             title="🎰 Rubbellos",
-            description="Rubbel drei gleiche Symbole für einen Gewinn!\n\n"
+            description="Finde 3 gleiche Symbole und gewinne!\n\n"
                       "**Gewinne:**\n"
-                      "🍒 Cherry: 1.5x\n"
-                      "🍊 Orange: 2x\n"
-                      "🍇 Grape: 3x\n"
-                      "💎 Diamond: 5x\n\n"
+                      "💎 Diamant: 5x\n"
+                      "🎰 Slot: 4x\n"
+                      "7️⃣ Sieben: 3x\n"
+                      "⭐ Stern: 2x\n"
+                      "🍀 Kleeblatt: 1.5x\n\n"
                       "**Verwendung:**\n"
                       "`!scratch <einsatz>`\n"
                       "Beispiel: `!scratch 100`",
@@ -1863,80 +1765,116 @@ async def scratch(ctx, bet_amount: int = None):
         await ctx.send(embed=embed)
         return
 
-    if bet_amount < 50:
-        await ctx.send("❌ Der Minimaleinsatz ist 50 Coins!")
+    if bet_amount < 1:
+        await ctx.send("❌ Der Mindesteinsatz ist 1 Coin!")
         return
 
-    user_coins = get_coins(ctx.author.id)
-    if user_coins < bet_amount:
+    balance = get_coins(ctx.author.id)
+    if balance < bet_amount:
         await ctx.send("❌ Du hast nicht genug Coins!")
         return
 
     update_coins(ctx.author.id, -bet_amount)
+    view = ScratchView(bet_amount, ctx.author.id, ctx)
+    await view.start()
 
-    # Symbole und ihre Multiplikatoren
-    symbols = {
-        "🍒": 1.5,  # Cherry
-        "🍊": 2.0,  # Orange
-        "🍇": 3.0,  # Grape
-        "💎": 5.0   # Diamond
-    }
+class DiceGame:
+    def __init__(self):
+        self.dice = []
 
-    # Gewichtete Wahrscheinlichkeiten (seltener = wertvoller)
-    weights = [0.4, 0.3, 0.2, 0.1]
-    
-    # Generiere 9 zufällige Symbole
-    grid = []
-    for _ in range(9):
-        symbol = random.choices(list(symbols.keys()), weights=weights)[0]
-        grid.append(symbol)
+    def roll(self) -> int:
+        return random.randint(1, 6)
 
-    # Prüfe auf Gewinnlinien (horizontal, vertikal, diagonal)
-    winning_lines = [
-        [0, 1, 2], [3, 4, 5], [6, 7, 8],  # Horizontal
-        [0, 3, 6], [1, 4, 7], [2, 5, 8],  # Vertikal
-        [0, 4, 8], [2, 4, 6]              # Diagonal
-    ]
+class DiceView(View):
+    def __init__(self, bet_amount: int, user_id: int, ctx):
+        super().__init__(timeout=None)
+        self.bet_amount = bet_amount
+        self.user_id = user_id
+        self.ctx = ctx
+        self.message = None
+        self.dice = DiceGame()
 
-    won = False
-    multiplier = 0
-    winning_symbol = None
-    
-    for line in winning_lines:
-        if grid[line[0]] == grid[line[1]] == grid[line[2]]:
-            won = True
-            winning_symbol = grid[line[0]]
-            multiplier = symbols[winning_symbol]
-            break
-
-    # Erstelle das Rubbellos-Display
-    display = "```\n"
-    for i in range(0, 9, 3):
-        display += f"│ {grid[i]} │ {grid[i+1]} │ {grid[i+2]} │\n"
-    display += "```"
-
-    if won:
-        winnings = int(bet_amount * multiplier)
-        update_coins(ctx.author.id, winnings)
-        
+    async def start(self):
         embed = discord.Embed(
-            title="🎉 Gewonnen!",
-            description=f"Du hast **{winnings}** Coins gewonnen! (x{multiplier})\n\n{display}",
-            color=discord.Color.green()
+            title="🎲 Würfelspiel",
+            description="Wette auf eine Zahl zwischen 1-6!\n\n"
+                      "**Gewinne:**\n"
+                      "• Richtige Zahl: 5x Einsatz\n"
+                      "• ±1 daneben: 2x Einsatz",
+            color=discord.Color.gold()
         )
-    else:
-        embed = discord.Embed(
-            title="😢 Verloren!",
-            description=f"Leider keine Gewinnlinie gefunden!\n\n{display}",
-            color=discord.Color.red()
+        embed.add_field(
+            name="💰 Einsatz",
+            value=f"**{self.bet_amount}** Coins",
+            inline=False
         )
+        self.message = await self.ctx.send(embed=embed, view=self)
 
-    embed.set_footer(text="Viel Glück beim nächsten Mal! 🍀")
-    await ctx.send(embed=embed)
+    @discord.ui.button(label="1", style=discord.ButtonStyle.primary, row=0)
+    async def button_1(self, interaction: discord.Interaction, button: Button):
+        await self.roll_dice(interaction, 1)
+
+    @discord.ui.button(label="2", style=discord.ButtonStyle.primary, row=0)
+    async def button_2(self, interaction: discord.Interaction, button: Button):
+        await self.roll_dice(interaction, 2)
+
+    @discord.ui.button(label="3", style=discord.ButtonStyle.primary, row=0)
+    async def button_3(self, interaction: discord.Interaction, button: Button):
+        await self.roll_dice(interaction, 3)
+
+    @discord.ui.button(label="4", style=discord.ButtonStyle.primary, row=1)
+    async def button_4(self, interaction: discord.Interaction, button: Button):
+        await self.roll_dice(interaction, 4)
+
+    @discord.ui.button(label="5", style=discord.ButtonStyle.primary, row=1)
+    async def button_5(self, interaction: discord.Interaction, button: Button):
+        await self.roll_dice(interaction, 5)
+
+    @discord.ui.button(label="6", style=discord.ButtonStyle.primary, row=1)
+    async def button_6(self, interaction: discord.Interaction, button: Button):
+        await self.roll_dice(interaction, 6)
+
+    async def roll_dice(self, interaction: discord.Interaction, choice: int):
+        # Deaktiviere Buttons sofort
+        for item in self.children:
+            item.disabled = True
+        await interaction.response.edit_message(view=self)
+
+        # Würfel Animation
+        result = random.randint(1, 6)
+        dice_faces = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"]
+        embed = discord.Embed(title="🎲 Würfelspiel", color=discord.Color.gold())
+        embed.add_field(name="Deine Wahl", value=str(choice))
+        embed.add_field(name="Einsatz", value=f"{self.bet_amount} Coins")
+
+        # Animiere den Würfelwurf
+        for _ in range(3):
+            temp_roll = random.randint(1, 6)
+            embed.description = f"Würfel wird geworfen... {dice_faces[temp_roll-1]}"
+            await self.message.edit(embed=embed)
+            await asyncio.sleep(0.5)
+
+        # Zeige Ergebnis
+        if choice == result:
+            winnings = self.bet_amount * 5
+            update_coins(self.user_id, winnings)
+            embed.description = f"**Volltreffer!** 🎉\nDu hast {winnings} Coins gewonnen!"
+            embed.color = discord.Color.green()
+        elif abs(choice - result) == 1:
+            winnings = self.bet_amount * 2
+            update_coins(self.user_id, winnings)
+            embed.description = f"**Fast!** 🎯\nDu hast {winnings} Coins gewonnen!"
+            embed.color = discord.Color.blue()
+        else:
+            embed.description = f"**Verloren!** 😢\nDer Würfel zeigt {result}!"
+            embed.color = discord.Color.red()
+
+        embed.add_field(name="Ergebnis", value=f"{dice_faces[result-1]} ({result})", inline=False)
+        await self.message.edit(embed=embed)
 
 @bot.command()
-async def dice(ctx, bet_amount: int = None, number: int = None):
-    if not bet_amount or not number or number not in range(1, 7):
+async def dice(ctx, bet_amount: int = None):
+    if not bet_amount:
         embed = discord.Embed(
             title="🎲 Würfelspiel",
             description="Wette auf eine Zahl zwischen 1-6!\n\n"
@@ -1944,59 +1882,25 @@ async def dice(ctx, bet_amount: int = None, number: int = None):
                       "• Richtige Zahl: 5x Einsatz\n"
                       "• ±1 daneben: 2x Einsatz\n\n"
                       "**Verwendung:**\n"
-                      "`!dice <einsatz> <zahl>`\n"
-                      "Beispiel: `!dice 100 6`",
+                      "`!dice <einsatz>`\n"
+                      "Beispiel: `!dice 100`",
             color=discord.Color.gold()
         )
         await ctx.send(embed=embed)
         return
 
-    if bet_amount < 50:
-        await ctx.send("❌ Der Minimaleinsatz ist 50 Coins!")
+    if bet_amount < 1:
+        await ctx.send("❌ Der Mindesteinsatz ist 1 Coin!")
         return
 
-    user_coins = get_coins(ctx.author.id)
-    if user_coins < bet_amount:
+    balance = get_coins(ctx.author.id)
+    if balance < bet_amount:
         await ctx.send("❌ Du hast nicht genug Coins!")
         return
 
     update_coins(ctx.author.id, -bet_amount)
-
-    # Würfle eine Zahl
-    dice_faces = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"]
-    result = random.randint(1, 6)
-    
-    # Bestimme den Gewinn
-    if result == number:
-        multiplier = 5
-        title = "🎉 Volltreffer!"
-        color = discord.Color.green()
-    elif abs(result - number) == 1:
-        multiplier = 2
-        title = "🎯 Fast getroffen!"
-        color = discord.Color.blue()
-    else:
-        multiplier = 0
-        title = "😢 Daneben!"
-        color = discord.Color.red()
-
-    description = f"Du hast auf **{number}** gewettet.\n"
-    description += f"Gewürfelt wurde: {dice_faces[result-1]} **({result})**\n\n"
-
-    if multiplier > 0:
-        winnings = int(bet_amount * multiplier)
-        update_coins(ctx.author.id, winnings)
-        description += f"Du gewinnst **{winnings}** Coins! (x{multiplier})"
-    else:
-        description += "Du verlierst deinen Einsatz!"
-
-    embed = discord.Embed(
-        title=title,
-        description=description,
-        color=color
-    )
-    embed.set_footer(text="Viel Glück beim nächsten Mal! 🎲")
-    await ctx.send(embed=embed)
+    view = DiceView(bet_amount, ctx.author.id, ctx)
+    await view.start()
 
 class YahtzeeGame:
     def __init__(self):
@@ -2058,132 +1962,243 @@ class YahtzeeGame:
         # Summe aller Würfel
         return sum(self.dice)
 
-class YahtzeeView(discord.ui.View):
-    def __init__(self, ctx, bet_amount):
-        super().__init__(timeout=60)
-        self.ctx = ctx
+class YahtzeeView(View):
+    def __init__(self, bet_amount: int, user_id: int, ctx):
+        super().__init__(timeout=30)  # 30 Sekunden Timeout
         self.bet_amount = bet_amount
-        self.game = YahtzeeGame()
+        self.user_id = user_id
+        self.ctx = ctx
         self.message = None
-        self.keep_dice = [False] * 5
-        
+        self.dice = []
+        self.rolls_left = 3
+        self.kept_dice = [False] * 5
+        self.rolling = False
+
     async def start(self):
-        self.game.roll_dice()
-        embed = self.get_game_embed()
-        self.message = await self.ctx.send(embed=embed, view=self)
-        
-    def get_game_embed(self):
+        self.roll_dice()
+        await self.update_message()
+
+    def roll_dice(self, keep_indices=None):
+        if keep_indices is None:
+            self.dice = [random.randint(1, 6) for _ in range(5)]
+        else:
+            new_dice = []
+            for i in range(5):
+                if i in keep_indices:
+                    new_dice.append(self.dice[i])
+                else:
+                    new_dice.append(random.randint(1, 6))
+            self.dice = new_dice
+        self.rolls_left -= 1
+
+    def get_dice_display(self):
         dice_faces = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"]
-        dice_display = " ".join([dice_faces[d-1] for d in self.game.dice])
-        keep_display = " ".join(["🔒" if k else "🔓" for k in self.keep_dice])
-        
+        display = []
+        for i, die in enumerate(self.dice):
+            face = dice_faces[die-1]
+            if self.kept_dice[i]:
+                display.append(f"[{face}]")  # Gehaltene Würfel in Klammern
+            else:
+                display.append(face)
+        return " ".join(display)
+
+    async def update_message(self):
+        description = (
+            f"**Würfel:** {self.get_dice_display()}\n"
+            f"**Würfe übrig:** {self.rolls_left}\n\n"
+            "**Gewinne:**\n"
+            "🎯 Yahtzee (5 gleiche): 50x\n"
+            "🎲 Vier gleiche: 30x\n"
+            "🎲 Full House: 20x\n"
+            "🎲 Große Straße: 15x\n"
+            "🎲 Kleine Straße: 10x\n"
+            "🎲 Drei gleiche: 5x\n"
+            "🎲 Zwei Paare: 3x\n"
+            "🎲 Ein Paar: 1.5x\n\n"
+        )
+
+        if self.rolls_left > 0:
+            description += "Wähle Würfel zum Halten und würfle erneut!"
+        else:
+            description += "Keine Würfe mehr übrig!"
+
         embed = discord.Embed(
             title="🎲 Yahtzee",
-            description=f"**Würfel:**\n{dice_display}\n{keep_display}\n\n"
-                      f"**Würfe übrig:** {self.game.rolls_left}\n"
-                      f"**Aktueller Wert:** {self.game.get_score()} Punkte",
-            color=discord.Color.blue()
+            description=description,
+            color=discord.Color.gold()
         )
+        embed.add_field(name="Einsatz", value=f"{self.bet_amount} Coins")
+
+        if not self.message:
+            self.message = await self.ctx.send(embed=embed, view=self)
+        else:
+            await self.message.edit(embed=embed, view=self)
+
+    def check_win(self):
+        # Zähle Würfel
+        counts = {}
+        for die in self.dice:
+            counts[die] = counts.get(die, 0) + 1
         
-        if self.game.rolls_left == 0:
-            score = self.game.get_score()
-            multiplier = score / 10  # Jeder Punkt ist 0.1x Multiplikator
-            winnings = int(self.bet_amount * multiplier)
-            
-            if winnings > self.bet_amount:
-                embed.color = discord.Color.green()
-                embed.add_field(
-                    name="🎉 Gewonnen!",
-                    value=f"**{winnings}** Coins (x{multiplier:.1f})",
-                    inline=False
-                )
-            else:
-                embed.color = discord.Color.red()
-                embed.add_field(
-                    name="😢 Verloren!",
-                    value=f"Einsatz verloren!",
-                    inline=False
-                )
-                
-            self.disable_all_buttons()
-            
-        return embed
+        # Sortiere für Straßen
+        sorted_dice = sorted(self.dice)
         
-    def disable_all_buttons(self):
+        # Prüfe Kombinationen
+        if 5 in counts.values():  # Yahtzee
+            return 50, "🎯 Yahtzee! (5 gleiche)"
+        elif 4 in counts.values():  # Vier gleiche
+            return 30, "🎲 Vier gleiche!"
+        elif 3 in counts.values() and 2 in counts.values():  # Full House
+            return 25, "🎲 Full House!"
+        elif (sorted_dice == [1,2,3,4,5] or 
+              sorted_dice == [2,3,4,5,6]):  # Große Straße
+            return 30, "🎲 Große Straße!"
+        elif any(all(x in sorted_dice for x in seq) for seq in [
+            [1,2,3,4], [2,3,4,5], [3,4,5,6]]):  # Kleine Straße
+            return 20, "🎲 Kleine Straße!"
+        elif 3 in counts.values():  # Drei gleiche
+            return 15, "🎲 Drei gleiche!"
+        elif list(counts.values()).count(2) == 2:  # Zwei Paare
+            return 10, "🎲 Zwei Paare!"
+        elif 2 in counts.values():  # Ein Paar
+            return 5, "🎲 Ein Paar!"
+        return 0, "Keine Gewinnkombination"
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user != self.ctx.author:
+            await interaction.response.send_message("❌ Das ist nicht dein Spiel!", ephemeral=True)
+            return False
+        return True
+
+    async def on_timeout(self):
         for item in self.children:
             item.disabled = True
-            
-    @discord.ui.button(label="Würfeln", style=discord.ButtonStyle.green, emoji="🎲")
-    async def roll_button(self, button: discord.ui.Button, interaction: discord.Interaction):
-        if interaction.user != self.ctx.author:
+        if self.message:
+            await self.message.edit(view=self)
+
+    @discord.ui.button(label="Würfeln", style=discord.ButtonStyle.success, emoji="🎲", row=0)
+    async def roll(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.rolling:
+            await interaction.response.send_message("❌ Die Würfel rollen bereits!", ephemeral=True)
             return
-            
-        keep_indices = [i for i, k in enumerate(self.keep_dice) if k]
-        self.game.roll_dice(keep_indices)
+
+        if self.rolls_left <= 0:
+            await interaction.response.send_message("❌ Keine Würfe mehr übrig!", ephemeral=True)
+            return
+
+        self.rolling = True
+        keep_indices = [i for i, kept in enumerate(self.kept_dice) if kept]
         
-        if self.game.rolls_left == 0:
-            score = self.game.get_score()
-            multiplier = score / 10
+        # Animation
+        for _ in range(3):
+            temp_dice = self.dice.copy()
+            for i in range(5):
+                if i not in keep_indices:
+                    temp_dice[i] = random.randint(1, 6)
+            self.dice = temp_dice
+            await self.update_message()
+            await asyncio.sleep(0.3)  # Schnellere Updates
+
+        # Echter Wurf
+        self.roll_dice(keep_indices)
+        
+        if self.rolls_left == 0:
+            # Prüfe auf Gewinn
+            multiplier, combo_text = self.check_win()
             winnings = int(self.bet_amount * multiplier)
             
-            if winnings > self.bet_amount:
-                update_coins(self.ctx.author.id, winnings)
+            if multiplier > 0:
+                update_coins(self.user_id, winnings)
+                embed = discord.Embed(
+                    title="🎲 Yahtzee - Gewonnen! 🎉",
+                    description=f"{self.get_dice_display()}\n\n"
+                              f"**{combo_text}**\n"
+                              f"Du bekommst {winnings} Coins!",
+                    color=discord.Color.green()
+                )
+            else:
+                embed = discord.Embed(
+                    title="🎲 Yahtzee - Verloren! 😢",
+                    description=f"{self.get_dice_display()}\n\n"
+                              "Keine Gewinnkombination!",
+                    color=discord.Color.red()
+                )
             
-        await interaction.response.edit_message(embed=self.get_game_embed(), view=self)
+            # Deaktiviere alle Buttons
+            for item in self.children:
+                item.disabled = True
+            await self.message.edit(embed=embed, view=self)
+        else:
+            self.rolling = False
+            await self.update_message()
 
-    @discord.ui.button(label="Würfel behalten", style=discord.ButtonStyle.blurple, emoji="🔒")
-    async def toggle_button(self, button: discord.ui.Button, interaction: discord.Interaction):
-        if interaction.user != self.ctx.author:
+        await interaction.response.defer()
+
+    @discord.ui.button(label="Würfel 1", style=discord.ButtonStyle.secondary, row=1)
+    async def toggle_die_1(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.rolling:
+            await interaction.response.send_message("❌ Warte bis die Würfel aufhören zu rollen!", ephemeral=True)
             return
-            
-        # Modal zum Auswählen der Würfel
-        modal = ToggleDiceModal(self)
-        await interaction.response.send_modal(modal)
+        self.kept_dice[0] = not self.kept_dice[0]
+        button.style = discord.ButtonStyle.primary if self.kept_dice[0] else discord.ButtonStyle.secondary
+        await self.update_message()
+        await interaction.response.defer()
 
-class ToggleDiceModal(discord.ui.Modal, title="Würfel behalten"):
-    def __init__(self, view: YahtzeeView):
-        super().__init__()
-        self.view = view
-        
-        self.dice_input = discord.ui.TextInput(
-            label="Würfel (1-5, mit Leerzeichen getrennt)",
-            placeholder="z.B. '1 3 5' für den ersten, dritten und fünften Würfel",
-            required=True,
-            max_length=9
-        )
-        self.add_item(self.dice_input)
-        
-    async def on_submit(self, interaction: discord.Interaction):
-        try:
-            # Setze alle Würfel zurück
-            self.view.keep_dice = [False] * 5
-            
-            # Markiere ausgewählte Würfel
-            dice_numbers = [int(x) for x in self.dice_input.value.split()]
-            for num in dice_numbers:
-                if 1 <= num <= 5:
-                    self.view.keep_dice[num-1] = True
-                    
-            await interaction.response.edit_message(embed=self.view.get_game_embed(), view=self.view)
-            
-        except ValueError:
-            await interaction.response.send_message("❌ Ungültige Eingabe! Bitte gib die Würfelnummern (1-5) mit Leerzeichen getrennt ein.", ephemeral=True)
+    @discord.ui.button(label="Würfel 2", style=discord.ButtonStyle.secondary, row=1)
+    async def toggle_die_2(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.rolling:
+            await interaction.response.send_message("❌ Warte bis die Würfel aufhören zu rollen!", ephemeral=True)
+            return
+        self.kept_dice[1] = not self.kept_dice[1]
+        button.style = discord.ButtonStyle.primary if self.kept_dice[1] else discord.ButtonStyle.secondary
+        await self.update_message()
+        await interaction.response.defer()
+
+    @discord.ui.button(label="Würfel 3", style=discord.ButtonStyle.secondary, row=1)
+    async def toggle_die_3(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.rolling:
+            await interaction.response.send_message("❌ Warte bis die Würfel aufhören zu rollen!", ephemeral=True)
+            return
+        self.kept_dice[2] = not self.kept_dice[2]
+        button.style = discord.ButtonStyle.primary if self.kept_dice[2] else discord.ButtonStyle.secondary
+        await self.update_message()
+        await interaction.response.defer()
+
+    @discord.ui.button(label="Würfel 4", style=discord.ButtonStyle.secondary, row=2)
+    async def toggle_die_4(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.rolling:
+            await interaction.response.send_message("❌ Warte bis die Würfel aufhören zu rollen!", ephemeral=True)
+            return
+        self.kept_dice[3] = not self.kept_dice[3]
+        button.style = discord.ButtonStyle.primary if self.kept_dice[3] else discord.ButtonStyle.secondary
+        await self.update_message()
+        await interaction.response.defer()
+
+    @discord.ui.button(label="Würfel 5", style=discord.ButtonStyle.secondary, row=2)
+    async def toggle_die_5(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.rolling:
+            await interaction.response.send_message("❌ Warte bis die Würfel aufhören zu rollen!", ephemeral=True)
+            return
+        self.kept_dice[4] = not self.kept_dice[4]
+        button.style = discord.ButtonStyle.primary if self.kept_dice[4] else discord.ButtonStyle.secondary
+        await self.update_message()
+        await interaction.response.defer()
 
 @bot.command()
 async def yahtzee(ctx, bet_amount: int = None):
     if not bet_amount:
         embed = discord.Embed(
             title="🎲 Yahtzee",
-            description="Würfle die besten Kombinationen!\n\n"
-                      "**Kombinationen & Multiplikatoren:**\n"
-                      "• Yahtzee (5 gleiche): x5.0\n"
-                      "• Vierlinge: x4.0\n"
-                      "• Full House: x2.5\n"
-                      "• Große Straße: x3.0\n"
-                      "• Kleine Straße: x2.0\n"
-                      "• Drilling: x1.5\n"
-                      "• Zwei Paare: x1.0\n"
-                      "• Ein Paar: x0.5\n\n"
+            description="Versuche die besten Würfelkombinationen!\n\n"
+                      "**Gewinne:**\n"
+                      "🎯 Yahtzee (5 gleiche): 50x\n"
+                      "🎲 Vier gleiche: 30x\n"
+                      "🎲 Full House: 20x\n"
+                      "🎲 Große Straße: 15x\n"
+                      "🎲 Kleine Straße: 10x\n"
+                      "🎲 Drei gleiche: 5x\n"
+                      "🎲 Zwei Paare: 3x\n"
+                      "🎲 Ein Paar: 1.5x\n\n"
                       "**Verwendung:**\n"
                       "`!yahtzee <einsatz>`\n"
                       "Beispiel: `!yahtzee 100`",
@@ -2192,19 +2207,378 @@ async def yahtzee(ctx, bet_amount: int = None):
         await ctx.send(embed=embed)
         return
 
-    if bet_amount < 50:
-        await ctx.send("❌ Der Minimaleinsatz ist 50 Coins!")
+    if bet_amount < 1:
+        await ctx.send("❌ Der Mindesteinsatz ist 1 Coin!")
         return
 
-    user_coins = get_coins(ctx.author.id)
-    if user_coins < bet_amount:
+    balance = get_coins(ctx.author.id)
+    if balance < bet_amount:
         await ctx.send("❌ Du hast nicht genug Coins!")
         return
 
     update_coins(ctx.author.id, -bet_amount)
-    
-    view = YahtzeeView(ctx, bet_amount)
+    view = YahtzeeView(bet_amount, ctx.author.id, ctx)
     await view.start()
+
+# Globale Fehlermeldungen
+INSUFFICIENT_COINS = "❌ Du hast nicht genug Coins!"
+MINIMUM_BET = "❌ Der Mindesteinsatz ist {} Coins!"
+NOT_YOUR_GAME = "❌ Das ist nicht dein Spiel!"
+ALREADY_ROLLING = "❌ Die Würfel rollen bereits!"
+ALREADY_SPINNING = "❌ Das Rad dreht sich bereits!"
+NO_ROLLS_LEFT = "❌ Keine Würfe mehr übrig!"
+WAIT_FOR_ROLL = "❌ Warte bis die Würfel aufhören zu rollen!"
+
+# Hilfe-Texte für Spiele
+SLOTS_HELP = """🎰 Drehe am Spielautomaten!
+
+**Gewinne:**
+💎 Diamant: 50x
+7️⃣ Sieben: 20x
+🍀 Kleeblatt: 10x
+⭐ Stern: 5x
+🔔 Glocke: 3x
+🍒 Kirsche: 2x
+🍋 Zitrone: 1.5x
+
+**Verwendung:**
+`!slots <einsatz>`
+Beispiel: `!slots 100`"""
+
+ROULETTE_HELP = """🎲 Setze auf eine Farbe oder Zahl!
+
+**Wetten & Gewinne:**
+🔴 Rot: 2x
+⚫ Schwarz: 2x
+🟢 Grün (0): 14x
+2️⃣ Gerade: 2x
+1️⃣ Ungerade: 2x
+
+**Verwendung:**
+`!roulette <einsatz>`
+Beispiel: `!roulette 100`"""
+
+DICE_HELP = """🎲 Wähle eine Zahl und würfle!
+
+**Gewinne:**
+• Richtige Zahl: 6x Einsatz
+• Falsche Zahl: Verloren
+
+**Verwendung:**
+`!dice <einsatz>`
+Beispiel: `!dice 100`"""
+
+SCRATCH_HELP = """🎫 Kaufe ein Rubbellos!
+
+**Gewinne:**
+💎 Diamant: 50x
+7️⃣ Sieben: 20x
+🍀 Kleeblatt: 10x
+⭐ Stern: 5x
+🔔 Glocke: 3x
+🍒 Kirsche: 2x
+🍋 Zitrone: 1.5x
+
+**Verwendung:**
+`!scratch <einsatz>`
+Beispiel: `!scratch 100`"""
+
+RACE_HELP = """🏇 Wette auf ein Pferd!
+
+**Wetten:**
+• Pferd 1-3
+• Gewinn: 3x Einsatz
+
+**Verwendung:**
+`!race <einsatz> <pferd>`
+Beispiel: `!race 100 1`"""
+
+YAHTZEE_HELP = """🎲 Würfelpoker!
+
+**Gewinne:**
+🎯 Yahtzee (5 gleiche): 50x
+🎲 Vier gleiche: 30x
+🎲 Full House: 20x
+🎲 Große Straße: 15x
+🎲 Kleine Straße: 10x
+🎲 Drei gleiche: 5x
+🎲 Zwei Paare: 3x
+🎲 Ein Paar: 1.5x
+
+**Verwendung:**
+`!yahtzee <einsatz>`
+Beispiel: `!yahtzee 100`"""
+
+COINFLIP_HELP = """🪙 Wirf eine Münze!
+
+**Gewinne:**
+• Richtig: 2x Einsatz
+• Falsch: Verloren
+
+**Verwendung:**
+`!coinflip <einsatz> <kopf/zahl>`
+Beispiel: `!coinflip 100 kopf`"""
+
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        minutes = int(error.retry_after / 60)
+        seconds = int(error.retry_after % 60)
+        embed = discord.Embed(
+            title="⏰ Cooldown",
+            description=f"Dieser Befehl ist noch im Cooldown!\nVersuche es in {minutes}m {seconds}s erneut.",
+            color=discord.Color.orange()
+        )
+        await ctx.send(embed=embed)
+    elif isinstance(error, commands.MissingPermissions):
+        embed = discord.Embed(
+            title="❌ Keine Berechtigung",
+            description="Du hast keine Berechtigung für diesen Befehl!",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
+    elif isinstance(error, commands.CommandNotFound):
+        embed = discord.Embed(
+            title="❓ Unbekannter Befehl",
+            description="Dieser Befehl existiert nicht!\nNutze `!help` für eine Liste aller Befehle.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
+    elif isinstance(error, commands.MissingRequiredArgument):
+        embed = discord.Embed(
+            title="❌ Fehlende Argumente",
+            description="Dir fehlen wichtige Angaben für diesen Befehl!\nNutze `!help <befehl>` für Hilfe.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
+    elif isinstance(error, commands.BadArgument):
+        embed = discord.Embed(
+            title="❌ Ungültige Argumente",
+            description="Deine Eingabe ist ungültig!\nNutze `!help <befehl>` für Hilfe.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
+    else:
+        embed = discord.Embed(
+            title="❌ Fehler",
+            description=f"Ein Fehler ist aufgetreten:\n```{str(error)}```",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
+
+@bot.event
+async def on_ready():
+    print(f'🎮 Bot ist online als {bot.user.name}')
+    await bot.change_presence(activity=discord.Game(name="!help | Casino Games"))
+
+@bot.command()
+async def help(ctx, command: str = None):
+    if command:
+        # Hilfe für spezifischen Befehl
+        command = command.lower()
+        if command == "slots":
+            embed = discord.Embed(title="🎰 Slots - Hilfe", description=SLOTS_HELP, color=discord.Color.blue())
+        elif command == "roulette":
+            embed = discord.Embed(title="🎲 Roulette - Hilfe", description=ROULETTE_HELP, color=discord.Color.blue())
+        elif command == "dice":
+            embed = discord.Embed(title="🎲 Würfel - Hilfe", description=DICE_HELP, color=discord.Color.blue())
+        elif command == "scratch":
+            embed = discord.Embed(title="🎫 Rubbellos - Hilfe", description=SCRATCH_HELP, color=discord.Color.blue())
+        elif command == "race":
+            embed = discord.Embed(title="🏇 Pferderennen - Hilfe", description=RACE_HELP, color=discord.Color.blue())
+        elif command == "yahtzee":
+            embed = discord.Embed(title="🎲 Yahtzee - Hilfe", description=YAHTZEE_HELP, color=discord.Color.blue())
+        elif command == "coinflip":
+            embed = discord.Embed(title="🪙 Münzwurf - Hilfe", description=COINFLIP_HELP, color=discord.Color.blue())
+        else:
+            embed = discord.Embed(
+                title="❓ Unbekannter Befehl",
+                description=f"Der Befehl `{command}` wurde nicht gefunden!\nNutze `!help` für eine Liste aller Befehle.",
+                color=discord.Color.red()
+            )
+    else:
+        # Allgemeine Hilfe
+        embed = discord.Embed(
+            title="🎮 Casino Bot - Hilfe",
+            description="Hier sind alle verfügbaren Befehle:",
+            color=discord.Color.blue()
+        )
+        
+        # Economy Commands
+        embed.add_field(
+            name="💰 Economy",
+            value="```\n"
+                  "!daily   - Tägliche Coins\n"
+                  "!work    - Arbeiten für Coins\n"
+                  "!beg     - Betteln für Coins\n"
+                  "!rob     - Andere Spieler ausrauben\n"
+                  "!balance - Zeigt dein Guthaben\n"
+                  "!top     - Zeigt die reichsten Spieler\n"
+                  "```",
+            inline=False
+        )
+        
+        # Casino Games
+        embed.add_field(
+            name="🎲 Casino Spiele",
+            value="```\n"
+                  "!slots    - Spielautomat\n"
+                  "!roulette - Roulette\n"
+                  "!coinflip - Münzwurf\n"
+                  "!dice     - Würfelspiel\n"
+                  "!scratch  - Rubbellos\n"
+                  "!race     - Pferderennen\n"
+                  "!yahtzee  - Würfelpoker\n"
+                  "```",
+            inline=False
+        )
+        
+        embed.set_footer(text="Nutze !help <befehl> für mehr Infos zu einem Befehl")
+    
+    await ctx.send(embed=embed)
+
+@bot.command()
+async def balance(ctx, member: discord.Member = None):
+    if member is None:
+        member = ctx.author
+    
+    coins = get_coins(member.id)
+    embed = discord.Embed(
+        title="💰 Guthaben",
+        description=f"{member.mention} hat **{coins:,}** Coins",
+        color=discord.Color.gold()
+    )
+    await ctx.send(embed=embed)
+
+@bot.command()
+async def top(ctx):
+    cursor.execute("SELECT user_id, coins FROM economy ORDER BY coins DESC LIMIT 10")
+    top_users = cursor.fetchall()
+    
+    description = ""
+    for i, (user_id, coins) in enumerate(top_users, 1):
+        user = bot.get_user(user_id)
+        if user:
+            medal = "👑" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else "🏅"
+            description += f"{medal} **{i}.** {user.mention}: **{coins:,}** Coins\n"
+    
+    embed = discord.Embed(
+        title="🏆 Reichste Spieler",
+        description=description,
+        color=discord.Color.gold()
+    )
+    await ctx.send(embed=embed)
+
+@bot.command()
+@commands.cooldown(1, 86400, commands.BucketType.user)  # 24h cooldown
+async def daily(ctx):
+    amount = random.randint(1000, 2000)
+    update_coins(ctx.author.id, amount)
+    
+    embed = discord.Embed(
+        title="📅 Tägliche Belohnung",
+        description=f"Du hast **{amount:,}** Coins erhalten!\nKomm morgen wieder!",
+        color=discord.Color.green()
+    )
+    await ctx.send(embed=embed)
+
+@bot.command()
+@commands.cooldown(1, 3600, commands.BucketType.user)  # 1h cooldown
+async def work(ctx):
+    amount = random.randint(100, 500)
+    update_coins(ctx.author.id, amount)
+    
+    jobs = [
+        "🏢 Als Bürokaufmann",
+        "🚕 Als Taxifahrer",
+        "👨‍🍳 Als Koch",
+        "🎨 Als Künstler",
+        "🔧 Als Mechaniker",
+        "💻 Als Programmierer",
+        "📦 Als Paketbote",
+        "🏪 Als Kassierer",
+        "🌳 Als Gärtner",
+        "🎵 Als Straßenmusiker"
+    ]
+    
+    embed = discord.Embed(
+        title="💼 Arbeit",
+        description=f"{random.choice(jobs)} hast du **{amount:,}** Coins verdient!",
+        color=discord.Color.green()
+    )
+    await ctx.send(embed=embed)
+
+@bot.command()
+@commands.cooldown(1, 300, commands.BucketType.user)  # 5min cooldown
+async def beg(ctx):
+    amount = random.randint(1, 100)
+    update_coins(ctx.author.id, amount)
+    
+    responses = [
+        "🥺 Ein Passant hat Mitleid",
+        "👵 Eine alte Dame ist großzügig",
+        "🎭 Ein Straßenkünstler teilt",
+        "🎪 Ein Zirkusclown ist nett",
+        "🎸 Ein Musiker ist beeindruckt",
+        "🎨 Ein Künstler ist inspiriert",
+        "🌟 Ein Fan erkennt dich",
+        "🍀 Dein Glückstag",
+        "💝 Jemand mag dich",
+        "🎁 Ein Geschenk vom Himmel"
+    ]
+    
+    embed = discord.Embed(
+        title="🙏 Betteln",
+        description=f"{random.choice(responses)} und gibt dir **{amount:,}** Coins!",
+        color=discord.Color.green()
+    )
+    await ctx.send(embed=embed)
+
+@bot.command()
+@commands.cooldown(1, 7200, commands.BucketType.user)  # 2h cooldown
+async def rob(ctx, victim: discord.Member):
+    if victim.id == ctx.author.id:
+        embed = discord.Embed(
+            title="🤔 Moment mal...",
+            description="Du kannst dich nicht selbst ausrauben!",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
+        return
+    
+    victim_coins = get_coins(victim.id)
+    if victim_coins < 100:
+        embed = discord.Embed(
+            title="❌ Zu arm",
+            description=f"{victim.mention} hat zu wenig Coins zum Ausrauben!",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
+        return
+    
+    success = random.random() < 0.4  # 40% Chance
+    
+    if success:
+        amount = random.randint(1, min(1000, victim_coins))
+        update_coins(victim.id, -amount)
+        update_coins(ctx.author.id, amount)
+        
+        embed = discord.Embed(
+            title="💰 Erfolgreicher Raub",
+            description=f"Du hast {victim.mention} **{amount:,}** Coins geklaut!",
+            color=discord.Color.green()
+        )
+    else:
+        fine = random.randint(100, 500)
+        update_coins(ctx.author.id, -fine)
+        
+        embed = discord.Embed(
+            title="🚔 Erwischt",
+            description=f"Du wurdest gefasst und musst **{fine:,}** Coins Strafe zahlen!",
+            color=discord.Color.red()
+        )
+    
+    await ctx.send(embed=embed)
 
 # Wenn die Datei direkt ausgeführt wird
 if __name__ == "__main__":
