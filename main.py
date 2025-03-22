@@ -191,8 +191,101 @@ Beispiel: `!coinflip 100 kopf`"""
 
 @bot.event
 async def on_ready():
-    print(f'🎮 Bot ist online als {bot.user.name}')
-    await bot.change_presence(activity=discord.Game(name="!help | Casino Games"))
+    print(f'🤖 Bot ist online als {bot.user.name}')
+    await bot.change_presence(activity=discord.Game(name="!help | Dein Allrounder"))
+
+@bot.command(aliases=["hilfe", "commands", "befehle"])
+async def help(ctx, category: str = None):
+    if category:
+        # Hilfe für spezifische Kategorie
+        category = category.lower()
+        if category == "economy":
+            embed = discord.Embed(
+                title="💰 Economy - Hilfe",
+                description="**Economy-Befehle:**\n\n"
+                          "• `!daily` - Tägliche Coins abholen\n"
+                          "• `!work` - Arbeiten für Coins\n"
+                          "• `!beg` - Betteln für Coins\n"
+                          "• `!rob <user>` - Andere Spieler ausrauben\n"
+                          "• `!balance` - Zeigt dein Guthaben\n"
+                          "• `!top` - Zeigt die reichsten Spieler",
+                color=discord.Color.gold()
+            )
+            embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1037834042793287680.webp?size=96&quality=lossless")
+        elif category == "casino":
+            embed = discord.Embed(
+                title="🎲 Casino - Hilfe",
+                description="**Casino-Befehle:**\n\n"
+                          "• `!slots <einsatz>` - Spielautomat\n"
+                          "• `!roulette <einsatz> <wette>` - Roulette\n"
+                          "• `!coinflip <einsatz> <kopf/zahl>` - Münzwurf\n"
+                          "• `!dice <einsatz>` - Würfelspiel\n"
+                          "• `!scratch <einsatz>` - Rubbellos\n"
+                          "• `!race <einsatz> <pferd>` - Pferderennen\n"
+                          "• `!yahtzee <einsatz>` - Würfelpoker",
+                color=discord.Color.purple()
+            )
+            embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1037834098187153408.webp?size=96&quality=lossless")
+        elif category == "moderation":
+            embed = discord.Embed(
+                title="🛡️ Moderation - Hilfe",
+                description="**Moderations-Befehle:**\n\n"
+                          "• `!kick <user> [grund]` - Kickt einen User\n"
+                          "• `!ban <user> [grund]` - Bannt einen User\n"
+                          "• `!timeout <user> <minuten> [grund]` - Timeout für User\n"
+                          "• `!untimeout <user> [grund]` - Hebt Timeout auf\n"
+                          "• `!creatorroles` - Erstellt die Creator-Rollen\n\n"
+                          "**Hinweis:** Diese Befehle benötigen entsprechende Rechte!",
+                color=discord.Color.blue()
+            )
+            embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1037834181517074443.webp?size=96&quality=lossless")
+        elif category == "counting":
+            embed = discord.Embed(
+                title="🔢 Counting - Hilfe",
+                description="**Counting-Befehle:**\n\n"
+                          "• `!countingsetup #kanal` - Richtet einen Counting-Kanal ein\n"
+                          "• `!stopcounting` - Deaktiviert das Counting-System\n\n"
+                          "**Hinweis:** Diese Befehle sind nur für Administratoren!",
+                color=discord.Color.blue()
+            )
+            embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1037834223187759154.webp?size=96&quality=lossless")
+        else:
+            embed = discord.Embed(
+                title="❓ Unbekannte Kategorie",
+                description="**Verfügbare Kategorien:**\n\n"
+                          "• `!help economy` - Economy-System\n"
+                          "• `!help casino` - Casino-Spiele\n"
+                          "• `!help moderation` - Server-Moderation\n"
+                          "• `!help counting` - Counting-System",
+                color=discord.Color.red()
+            )
+            embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1037834270235238410.webp?size=96&quality=lossless")
+    else:
+        # Hauptmenü
+        embed = discord.Embed(
+            title="🤖 Dein Allrounder Bot",
+            description="**Ein Bot für alles!**\n\n"
+                      "Wähle eine Kategorie für mehr Infos:\n\n"
+                      "🎮 **Fun & Games**\n"
+                      "• `!help casino` - Spannende Casino-Spiele\n"
+                      "• `!help counting` - Gemeinsam zählen\n\n"
+                      "💰 **Economy**\n"
+                      "• `!help economy` - Coins verdienen & ausgeben\n\n"
+                      "🛡️ **Administration**\n"
+                      "• `!help moderation` - Server verwalten\n",
+            color=discord.Color.blue()
+        )
+        embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1037834270235238410.webp?size=96&quality=lossless")
+        embed.set_footer(text="Tipp: Nutze !hilfe oder !commands als Alternative zu !help")
+    
+    # Füge Autor und Zeitstempel zu allen Embeds hinzu
+    embed.set_author(
+        name=ctx.guild.name,
+        icon_url=ctx.guild.icon.url if ctx.guild.icon else None
+    )
+    embed.timestamp = datetime.datetime.now()
+    
+    await ctx.send(embed=embed)
 
 @bot.command()
 @commands.cooldown(1, 86400, commands.BucketType.user)  # 24h cooldown
@@ -1982,81 +2075,6 @@ async def on_command_error(ctx, error):
             color=discord.Color.red()
         )
         await ctx.send(embed=embed)
-
-@bot.command(name="help")
-async def help_command(ctx, category: str = None):
-    if category:
-        # Hilfe für spezifische Kategorie
-        category = category.lower()
-        if category == "economy":
-            embed = discord.Embed(
-                title="💰 Economy - Hilfe",
-                description="**Economy-Befehle:**\n\n"
-                          "• `!daily` - Tägliche Coins abholen\n"
-                          "• `!work` - Arbeiten für Coins\n"
-                          "• `!beg` - Betteln für Coins\n"
-                          "• `!rob <user>` - Andere Spieler ausrauben\n"
-                          "• `!balance` - Zeigt dein Guthaben\n"
-                          "• `!top` - Zeigt die reichsten Spieler",
-                color=discord.Color.gold()
-            )
-        elif category == "casino":
-            embed = discord.Embed(
-                title="🎲 Casino - Hilfe",
-                description="**Casino-Befehle:**\n\n"
-                          "• `!slots <einsatz>` - Spielautomat\n"
-                          "• `!roulette <einsatz> <wette>` - Roulette\n"
-                          "• `!coinflip <einsatz> <kopf/zahl>` - Münzwurf\n"
-                          "• `!dice <einsatz>` - Würfelspiel\n"
-                          "• `!scratch <einsatz>` - Rubbellos\n"
-                          "• `!race <einsatz> <pferd>` - Pferderennen\n"
-                          "• `!yahtzee <einsatz>` - Würfelpoker",
-                color=discord.Color.purple()
-            )
-        elif category == "moderation":
-            embed = discord.Embed(
-                title="🛡️ Moderation - Hilfe",
-                description="**Moderations-Befehle:**\n\n"
-                          "• `!kick <user> [grund]` - Kickt einen User\n"
-                          "• `!ban <user> [grund]` - Bannt einen User\n"
-                          "• `!timeout <user> <minuten> [grund]` - Timeout für User\n"
-                          "• `!untimeout <user> [grund]` - Hebt Timeout auf\n"
-                          "• `!creatorroles` - Erstellt die Creator-Rollen\n\n"
-                          "**Hinweis:** Diese Befehle benötigen entsprechende Rechte!",
-                color=discord.Color.blue()
-            )
-        elif category == "counting":
-            embed = discord.Embed(
-                title="🔢 Counting - Hilfe",
-                description="**Counting-Befehle:**\n\n"
-                          "• `!countingsetup #kanal` - Richtet einen Counting-Kanal ein\n"
-                          "• `!stopcounting` - Deaktiviert das Counting-System\n\n"
-                          "**Hinweis:** Diese Befehle sind nur für Administratoren!",
-                color=discord.Color.blue()
-            )
-        else:
-            embed = discord.Embed(
-                title="❓ Unbekannte Kategorie",
-                description="Verfügbare Kategorien:\n"
-                          "• `!help economy` - Economy-Befehle\n"
-                          "• `!help casino` - Casino-Befehle\n"
-                          "• `!help moderation` - Moderations-Befehle\n"
-                          "• `!help counting` - Counting-Befehle",
-                color=discord.Color.red()
-            )
-    else:
-        # Hauptmenü
-        embed = discord.Embed(
-            title="🎮 Casino Bot - Hilfe",
-            description="**Verfügbare Kategorien:**\n\n"
-                      "• `!help economy` - Economy-Befehle\n"
-                      "• `!help casino` - Casino-Befehle\n"
-                      "• `!help moderation` - Moderations-Befehle\n"
-                      "• `!help counting` - Counting-Befehle",
-            color=discord.Color.blue()
-        )
-    
-    await ctx.send(embed=embed)
 
 @bot.command()
 async def balance(ctx, member: discord.Member = None):
