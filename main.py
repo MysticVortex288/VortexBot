@@ -545,6 +545,7 @@ async def blackjack(ctx, bet: int = None):
 
 class WheelGame:
     def __init__(self):
+        # Roulette Zahlen und ihre Eigenschaften
         self.segments = [
             ("💎 5.0x", 5.0, 0.05),   # 5% Chance
             ("🌟 3.0x", 3.0, 0.10),   # 10% Chance
@@ -2007,8 +2008,125 @@ async def top(ctx):
     )
     await ctx.send(embed=embed)
 
+class RoleButton(discord.ui.Button):
+    def __init__(self, role_name: str, emoji: str, style: discord.ButtonStyle):
+        # Entferne Emoji aus dem Label wenn es schon im Namen ist
+        label = role_name
+        if emoji in label:
+            label = label.replace(emoji, '').strip()
+        super().__init__(label=label, emoji=emoji, style=style, custom_id=f"role_{role_name}")
+        self.role_name = role_name
+
+    async def callback(self, interaction: discord.Interaction):
+        # Finde die Rolle
+        role = discord.utils.get(interaction.guild.roles, name=self.role_name)
+        if not role:
+            await interaction.response.send_message(
+                embed=discord.Embed(
+                    title="❌ Fehler",
+                    description=f"Die Rolle {self.role_name} wurde nicht gefunden!",
+                    color=discord.Color.red()
+                ),
+                ephemeral=True
+            )
+            return
+
+        # Toggle die Rolle
+        if role in interaction.user.roles:
+            await interaction.user.remove_roles(role)
+            await interaction.response.send_message(
+                embed=discord.Embed(
+                    title="🗑️ Rolle entfernt",
+                    description=f"Dir wurde die Rolle {role.mention} entfernt!",
+                    color=discord.Color.red()
+                ),
+                ephemeral=True
+            )
+        else:
+            await interaction.user.add_roles(role)
+            await interaction.response.send_message(
+                embed=discord.Embed(
+                    title="✅ Rolle hinzugefügt",
+                    description=f"Dir wurde die Rolle {role.mention} hinzugefügt!",
+                    color=discord.Color.green()
+                ),
+                ephemeral=True
+            )
+
+class RoleView(discord.ui.View):
+    def __init__(self, roles: list):
+        super().__init__(timeout=None)  # Kein Timeout
+        
+        # Füge Buttons für jede Rolle hinzu
+        for role_name, emoji, style in roles:
+            self.add_item(RoleButton(role_name, emoji, style))
+
 @bot.command()
-async def help(ctx, command: str = None):
+@commands.has_permissions(administrator=True)
+async def creatorroles(ctx):
+    """Erstellt alle Rollen für das Server-Setup und zeigt Auswahlmenüs"""
+    
+    # Definiere die Rollen mit ihren Farben und Emojis
+    role_categories = {
+        "Altersgruppen": [
+            ("12+", "👶", discord.ButtonStyle.gray),
+            ("16+", "🧑", discord.ButtonStyle.gray),
+            ("18+", "🧓", discord.ButtonStyle.gray)
+        ],
+        "Geschlecht": [
+            ("♂️ Männlich", "♂️", discord.ButtonStyle.blurple),
+            ("♀️ Weiblich", "♀️", discord.ButtonStyle.danger)
+        ],
+        "Plattformen": [
+            ("🤖 Android", "📱", discord.ButtonStyle.success),
+            ("🍎 iOS", "📱", discord.ButtonStyle.danger),
+            ("💻 PC", "🖥️", discord.ButtonStyle.blurple),
+            ("🍏 MacOS", "💻", discord.ButtonStyle.gray)
+        ],
+        "Spiele": [
+            ("⛏️ Minecraft", "⛏️", discord.ButtonStyle.success),
+            ("🔫 Fortnite", "🎮", discord.ButtonStyle.danger),
+            ("🎮 Roblox", "🎮", discord.ButtonStyle.primary),
+            ("🎯 Valorant", "🎯", discord.ButtonStyle.danger)
+        ]
+    }
+
+    # Erstelle die Rollen
+    for category, roles in role_categories.items():
+        for role_name, _, _ in roles:
+            if not discord.utils.get(ctx.guild.roles, name=role_name):
+                try:
+                    await ctx.guild.create_role(
+                        name=role_name,
+                        mentionable=True
+                    )
+                except Exception as e:
+                    await ctx.send(
+                        embed=discord.Embed(
+                            title="❌ Fehler",
+                            description=f"Fehler beim Erstellen der Rolle {role_name}:\n{str(e)}",
+                            color=discord.Color.red()
+                        )
+                    )
+                    return
+
+    # Sende Auswahlmenüs für jede Kategorie
+    for category, roles in role_categories.items():
+        embed = discord.Embed(
+            title=f"🎭 {category}",
+            description="Klicke auf einen Button um die entsprechende Rolle zu erhalten oder zu entfernen!",
+            color=discord.Color.blue()
+        )
+        
+        # Füge Rollen zur Embed-Beschreibung hinzu
+        roles_text = "\n".join(f"{emoji} {name}" for name, emoji, _ in roles)
+        embed.add_field(name="Verfügbare Rollen:", value=roles_text)
+        
+        # Sende Embed mit Buttons
+        await ctx.send(embed=embed, view=RoleView(roles))
+
+@bot.command(name="help")
+async def help_command(ctx, command: str = None):
     if command:
         # Hilfe für spezifischen Befehl
         command = command.lower()
@@ -2036,6 +2154,15 @@ async def help(ctx, command: str = None):
                           "• `!untimeout <user> [grund]` - Hebt Timeout auf\n"
                           "• `!creatorroles` - Erstellt die Creator-Rollen\n\n"
                           "**Hinweis:** Diese Befehle benötigen entsprechende Rechte!",
+                color=discord.Color.blue()
+            )
+        elif command == "counting":
+            embed = discord.Embed(
+                title="🔢 Counting - Hilfe",
+                description="**Counting-Befehle:**\n\n"
+                          "• `!countingsetup #kanal` - Richtet einen Counting-Kanal ein\n"
+                          "• `!stopcounting` - Deaktiviert das Counting-System\n\n"
+                          "**Hinweis:** Diese Befehle sind nur für Administratoren!",
                 color=discord.Color.blue()
             )
         else:
@@ -2094,109 +2221,21 @@ async def help(ctx, command: str = None):
                   "Nutze !help moderation für Details",
             inline=False
         )
+
+        # Counting Commands
+        embed.add_field(
+            name="🔢 Counting",
+            value="```\n"
+                  "!countingsetup - Counting einrichten\n"
+                  "!stopcounting  - Counting deaktivieren\n"
+                  "```\n"
+                  "Nutze !help counting für Details",
+            inline=False
+        )
         
         embed.set_footer(text="Nutze !help <befehl> für mehr Infos zu einem Befehl")
     
     await ctx.send(embed=embed)
-
-@bot.command()
-@commands.has_permissions(administrator=True)
-async def creatorroles(ctx):
-    """Erstellt alle Rollen für das Server-Setup"""
-    
-    # Definiere die Rollen mit ihren Farben
-    roles_to_create = {
-        # Altersgruppen
-        "12+": discord.Color.light_grey(),
-        "16+": discord.Color.dark_grey(),
-        "18+": discord.Color.darker_grey(),
-        
-        # Geschlecht
-        "♂️ Männlich": discord.Color.blue(),
-        "♀️ Weiblich": discord.Color.magenta(),
-        
-        # Plattformen
-        "🤖 Android": discord.Color.green(),
-        "🍎 iOS": discord.Color.red(),
-        "💻 PC": discord.Color.blurple(),
-        "🍏 MacOS": discord.Color.light_grey(),
-        
-        # Spiele
-        "⛏️ Minecraft": discord.Color.dark_green(),
-        "🔫 Fortnite": discord.Color.purple(),
-        "🎮 Roblox": discord.Color.red(),
-        "🎯 Valorant": discord.Color.brand_red()
-    }
-    
-    # Erstelle ein Embed für den Status
-    embed = discord.Embed(
-        title="🛠️ Rollen-Setup",
-        description="Erstelle die Rollen...",
-        color=discord.Color.blue()
-    )
-    status_message = await ctx.send(embed=embed)
-    
-    # Erstelle die Rollen
-    created_roles = []
-    existing_roles = []
-    
-    for role_name, color in roles_to_create.items():
-        # Prüfe ob die Rolle bereits existiert
-        if discord.utils.get(ctx.guild.roles, name=role_name):
-            existing_roles.append(role_name)
-            continue
-            
-        # Erstelle die Rolle
-        try:
-            await ctx.guild.create_role(
-                name=role_name,
-                color=color,
-                mentionable=True
-            )
-            created_roles.append(role_name)
-        except Exception as e:
-            embed = discord.Embed(
-                title="❌ Fehler",
-                description=f"Fehler beim Erstellen der Rolle {role_name}:\n{str(e)}",
-                color=discord.Color.red()
-            )
-            await status_message.edit(embed=embed)
-            return
-    
-    # Erstelle das Erfolgs-Embed
-    embed = discord.Embed(
-        title="✅ Rollen-Setup abgeschlossen",
-        color=discord.Color.green()
-    )
-    
-    # Zeige erstellte Rollen
-    if created_roles:
-        roles_text = "\n".join(f"• {role}" for role in created_roles)
-        embed.add_field(
-            name="🆕 Erstellte Rollen",
-            value=roles_text,
-            inline=False
-        )
-    
-    # Zeige bereits existierende Rollen
-    if existing_roles:
-        roles_text = "\n".join(f"• {role}" for role in existing_roles)
-        embed.add_field(
-            name="ℹ️ Bereits vorhandene Rollen",
-            value=roles_text,
-            inline=False
-        )
-    
-    # Kategorien als Footer
-    categories = [
-        "👶 Altersgruppen: 12+, 16+, 18+",
-        "👥 Geschlecht: Männlich, Weiblich",
-        "📱 Plattformen: Android, iOS, PC, MacOS",
-        "🎮 Spiele: Minecraft, Fortnite, Roblox, Valorant"
-    ]
-    embed.set_footer(text=" • ".join(categories))
-    
-    await status_message.edit(embed=embed)
 
 if __name__ == "__main__":
     keep_alive()  # Startet den Webserver für 24/7 Uptime
