@@ -1,15 +1,10 @@
+import os
 import discord
 from discord.ext import commands
-from discord import app_commands
-import datetime
-import os
-from dotenv import load_dotenv
-import sqlite3
 import random
-import asyncio
-from typing import Optional, List, Dict
-import time
-from discord.ui import Button, View
+import datetime
+import sqlite3
+from dotenv import load_dotenv
 
 # Lade Umgebungsvariablen
 load_dotenv()
@@ -1761,8 +1756,8 @@ async def roulette(ctx, bet: int = None):
     await view.start()
 
 @bot.command()
-async def coinflip(ctx, bet: int = None):
-    if not bet:
+async def coinflip(ctx, bet_amount: int = None, number: int = None):
+    if not bet_amount or not number or number not in range(1, 7):
         embed = discord.Embed(
             title="🎰 Coinflip",
             description="Wirf eine Münze und wette auf Kopf oder Zahl!\n\n"
@@ -1777,20 +1772,20 @@ async def coinflip(ctx, bet: int = None):
         await ctx.send(embed=embed)
         return
 
-    if bet < 50:
+    if bet_amount < 50:
         await ctx.send("❌ Der Minimaleinsatz ist 50 Coins!")
         return
 
     user_coins = get_coins(ctx.author.id)
-    if user_coins < bet:
+    if user_coins < bet_amount:
         await ctx.send("❌ Du hast nicht genug Coins!")
         return
 
     # Ziehe Einsatz ab
-    update_coins(ctx.author.id, -bet)
+    update_coins(ctx.author.id, -bet_amount)
 
     # Starte Spiel
-    view = CoinflipView(bet, ctx.author.id, ctx)
+    view = CoinflipView(bet_amount, ctx.author.id, ctx)
     await view.start()
 
 class CoinflipView(View):
@@ -2185,7 +2180,7 @@ class YahtzeeView(discord.ui.View):
                 update_coins(self.ctx.author.id, winnings)
             
         await interaction.response.edit_message(embed=self.get_game_embed(), view=self)
-        
+
     @discord.ui.button(label="Würfel behalten", style=discord.ButtonStyle.blurple, emoji="🔒")
     async def toggle_button(self, button: discord.ui.Button, interaction: discord.Interaction):
         if interaction.user != self.ctx.author:
@@ -2263,4 +2258,6 @@ async def yahtzee(ctx, bet_amount: int = None):
 
 # Wenn die Datei direkt ausgeführt wird
 if __name__ == "__main__":
+    from server import keep_alive
+    keep_alive()  # Startet den Webserver
     bot.run(os.getenv('DISCORD_TOKEN'))
