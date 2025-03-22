@@ -639,7 +639,7 @@ async def help(ctx, category: str = None):
                       "• `!help moderation` - Moderations- und Statusbefehle\n"
                       "• `!help economy` - Wirtschaftssystem und Befehle\n"
                       "• `!help casino` - Casino-Spiele und Glücksspiel\n\n"
-                      "Weitere Kategorien kommen bald!",
+                      "**Weitere Kategorien kommen bald!**",
             color=discord.Color.blue()
         )
         embed.set_footer(text="Benutze !help <kategorie> für mehr Details")
@@ -651,7 +651,7 @@ async def help(ctx, category: str = None):
         embed = discord.Embed(
             title="🛠️ Moderations- und Statusbefehle",
             description="**Diese Befehle können nur von Administratoren verwendet werden!**\n\n"
-                       "Hier sind alle verfügbaren Befehle:",
+                       "**Hier sind alle verfügbaren Befehle:**",
             color=discord.Color.green()
         )
         embed.add_field(
@@ -2194,6 +2194,4 @@ async def yahtzee(ctx, bet_amount: int = None):
 
 # Wenn die Datei direkt ausgeführt wird
 if __name__ == "__main__":
-    from server import keep_alive
-    keep_alive()  # Startet den Webserver
     bot.run(os.getenv('DISCORD_TOKEN'))
