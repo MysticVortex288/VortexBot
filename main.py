@@ -42,17 +42,29 @@ cursor = conn.cursor()
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS economy (
     user_id INTEGER PRIMARY KEY,
-    coins INTEGER DEFAULT 0
-)
-''')
+    balance INTEGER DEFAULT 0,
+    last_daily TEXT,
+    last_work TEXT,
+    last_beg TEXT,
+    last_rob TEXT
+)''')
+
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS counting (
+    guild_id INTEGER PRIMARY KEY,
+    channel_id INTEGER,
+    last_number INTEGER DEFAULT 0,
+    last_user_id INTEGER DEFAULT 0
+)''')
+
 conn.commit()
 
 # Hilfsfunktionen
 def get_coins(user_id: int) -> int:
-    cursor.execute("SELECT coins FROM economy WHERE user_id = ?", (user_id,))
+    cursor.execute("SELECT balance FROM economy WHERE user_id = ?", (user_id,))
     result = cursor.fetchone()
     if result is None:
-        cursor.execute("INSERT INTO economy (user_id, coins) VALUES (?, 0)", (user_id,))
+        cursor.execute("INSERT INTO economy (user_id, balance) VALUES (?, 0)", (user_id,))
         conn.commit()
         return 0
     return result[0]
@@ -60,7 +72,7 @@ def get_coins(user_id: int) -> int:
 def update_coins(user_id: int, amount: int):
     current_coins = get_coins(user_id)
     new_coins = max(0, current_coins + amount)  # Verhindere negative Coins
-    cursor.execute("INSERT OR REPLACE INTO economy (user_id, coins) VALUES (?, ?)", (user_id, new_coins))
+    cursor.execute("INSERT OR REPLACE INTO economy (user_id, balance) VALUES (?, ?)", (user_id, new_coins))
     conn.commit()
 
 def get_last_used(user_id: int, command: str) -> Optional[datetime.datetime]:
@@ -1270,7 +1282,7 @@ class ScratchView(View):
     async def start(self):
         embed = discord.Embed(
             title="🎰 Rubbellos",
-            description=f"Rubble 3 Felder frei!\nEinsatz: {self.bet_amount} Coins\n\n"
+            description="Rubble 3 Felder frei!\nEinsatz: {self.bet_amount} Coins\n\n"
                       "**Gewinne:**\n"
                       "💎 Diamant: 5x\n"
                       "🎰 Slot: 4x\n"
@@ -1971,10 +1983,80 @@ async def on_command_error(ctx, error):
         )
         await ctx.send(embed=embed)
 
-@bot.event
-async def on_ready():
-    print(f'🎮 Bot ist online als {bot.user.name}')
-    await bot.change_presence(activity=discord.Game(name="!help | Casino Games"))
+@bot.command(name="help")
+async def help_command(ctx, category: str = None):
+    if category:
+        # Hilfe für spezifische Kategorie
+        category = category.lower()
+        if category == "economy":
+            embed = discord.Embed(
+                title="💰 Economy - Hilfe",
+                description="**Economy-Befehle:**\n\n"
+                          "• `!daily` - Tägliche Coins abholen\n"
+                          "• `!work` - Arbeiten für Coins\n"
+                          "• `!beg` - Betteln für Coins\n"
+                          "• `!rob <user>` - Andere Spieler ausrauben\n"
+                          "• `!balance` - Zeigt dein Guthaben\n"
+                          "• `!top` - Zeigt die reichsten Spieler",
+                color=discord.Color.gold()
+            )
+        elif category == "casino":
+            embed = discord.Embed(
+                title="🎲 Casino - Hilfe",
+                description="**Casino-Befehle:**\n\n"
+                          "• `!slots <einsatz>` - Spielautomat\n"
+                          "• `!roulette <einsatz> <wette>` - Roulette\n"
+                          "• `!coinflip <einsatz> <kopf/zahl>` - Münzwurf\n"
+                          "• `!dice <einsatz>` - Würfelspiel\n"
+                          "• `!scratch <einsatz>` - Rubbellos\n"
+                          "• `!race <einsatz> <pferd>` - Pferderennen\n"
+                          "• `!yahtzee <einsatz>` - Würfelpoker",
+                color=discord.Color.purple()
+            )
+        elif category == "moderation":
+            embed = discord.Embed(
+                title="🛡️ Moderation - Hilfe",
+                description="**Moderations-Befehle:**\n\n"
+                          "• `!kick <user> [grund]` - Kickt einen User\n"
+                          "• `!ban <user> [grund]` - Bannt einen User\n"
+                          "• `!timeout <user> <minuten> [grund]` - Timeout für User\n"
+                          "• `!untimeout <user> [grund]` - Hebt Timeout auf\n"
+                          "• `!creatorroles` - Erstellt die Creator-Rollen\n\n"
+                          "**Hinweis:** Diese Befehle benötigen entsprechende Rechte!",
+                color=discord.Color.blue()
+            )
+        elif category == "counting":
+            embed = discord.Embed(
+                title="🔢 Counting - Hilfe",
+                description="**Counting-Befehle:**\n\n"
+                          "• `!countingsetup #kanal` - Richtet einen Counting-Kanal ein\n"
+                          "• `!stopcounting` - Deaktiviert das Counting-System\n\n"
+                          "**Hinweis:** Diese Befehle sind nur für Administratoren!",
+                color=discord.Color.blue()
+            )
+        else:
+            embed = discord.Embed(
+                title="❓ Unbekannte Kategorie",
+                description="Verfügbare Kategorien:\n"
+                          "• `!help economy` - Economy-Befehle\n"
+                          "• `!help casino` - Casino-Befehle\n"
+                          "• `!help moderation` - Moderations-Befehle\n"
+                          "• `!help counting` - Counting-Befehle",
+                color=discord.Color.red()
+            )
+    else:
+        # Hauptmenü
+        embed = discord.Embed(
+            title="🎮 Casino Bot - Hilfe",
+            description="**Verfügbare Kategorien:**\n\n"
+                      "• `!help economy` - Economy-Befehle\n"
+                      "• `!help casino` - Casino-Befehle\n"
+                      "• `!help moderation` - Moderations-Befehle\n"
+                      "• `!help counting` - Counting-Befehle",
+            color=discord.Color.blue()
+        )
+    
+    await ctx.send(embed=embed)
 
 @bot.command()
 async def balance(ctx, member: discord.Member = None):
@@ -1991,15 +2073,15 @@ async def balance(ctx, member: discord.Member = None):
 
 @bot.command()
 async def top(ctx):
-    cursor.execute("SELECT user_id, coins FROM economy ORDER BY coins DESC LIMIT 10")
+    cursor.execute("SELECT user_id, balance FROM economy ORDER BY balance DESC LIMIT 10")
     top_users = cursor.fetchall()
     
     description = ""
-    for i, (user_id, coins) in enumerate(top_users, 1):
+    for i, (user_id, balance) in enumerate(top_users, 1):
         user = bot.get_user(user_id)
         if user:
             medal = "👑" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else "🏅"
-            description += f"{medal} **{i}.** {user.mention}: **{coins:,}** Coins\n"
+            description += f"{medal} **{i}.** {user.mention}: **{balance:,}** Coins\n"
     
     embed = discord.Embed(
         title="🏆 Reichste Spieler",
@@ -2125,117 +2207,120 @@ async def creatorroles(ctx):
         # Sende Embed mit Buttons
         await ctx.send(embed=embed, view=RoleView(roles))
 
-@bot.command(name="help")
-async def help_command(ctx, command: str = None):
-    if command:
-        # Hilfe für spezifischen Befehl
-        command = command.lower()
-        if command == "slots":
-            embed = discord.Embed(title="🎰 Slots - Hilfe", description=SLOTS_HELP, color=discord.Color.blue())
-        elif command == "roulette":
-            embed = discord.Embed(title="🎲 Roulette - Hilfe", description=ROULETTE_HELP, color=discord.Color.blue())
-        elif command == "dice":
-            embed = discord.Embed(title="🎲 Würfel - Hilfe", description=DICE_HELP, color=discord.Color.blue())
-        elif command == "scratch":
-            embed = discord.Embed(title="🎫 Rubbellos - Hilfe", description=SCRATCH_HELP, color=discord.Color.blue())
-        elif command == "race":
-            embed = discord.Embed(title="🏇 Pferderennen - Hilfe", description=RACE_HELP, color=discord.Color.blue())
-        elif command == "yahtzee":
-            embed = discord.Embed(title="🎲 Yahtzee - Hilfe", description=YAHTZEE_HELP, color=discord.Color.blue())
-        elif command == "coinflip":
-            embed = discord.Embed(title="🪙 Münzwurf - Hilfe", description=COINFLIP_HELP, color=discord.Color.blue())
-        elif command == "moderation":
-            embed = discord.Embed(
-                title="🛡️ Moderation - Hilfe",
-                description="**Moderations-Befehle:**\n\n"
-                          "• `!kick <user> [grund]` - Kickt einen User\n"
-                          "• `!ban <user> [grund]` - Bannt einen User\n"
-                          "• `!timeout <user> <minuten> [grund]` - Timeout für User\n"
-                          "• `!untimeout <user> [grund]` - Hebt Timeout auf\n"
-                          "• `!creatorroles` - Erstellt die Creator-Rollen\n\n"
-                          "**Hinweis:** Diese Befehle benötigen entsprechende Rechte!",
-                color=discord.Color.blue()
-            )
-        elif command == "counting":
-            embed = discord.Embed(
-                title="🔢 Counting - Hilfe",
-                description="**Counting-Befehle:**\n\n"
-                          "• `!countingsetup #kanal` - Richtet einen Counting-Kanal ein\n"
-                          "• `!stopcounting` - Deaktiviert das Counting-System\n\n"
-                          "**Hinweis:** Diese Befehle sind nur für Administratoren!",
-                color=discord.Color.blue()
-            )
-        else:
-            embed = discord.Embed(
-                title="❓ Unbekannter Befehl",
-                description=f"Der Befehl `{command}` wurde nicht gefunden!\nNutze `!help` für eine Liste aller Befehle.",
-                color=discord.Color.red()
-            )
-    else:
-        # Allgemeine Hilfe
-        embed = discord.Embed(
-            title="🎮 Casino Bot - Hilfe",
-            description="Hier sind alle verfügbaren Befehle:",
-            color=discord.Color.blue()
-        )
-        
-        # Economy Commands
-        embed.add_field(
-            name="💰 Economy",
-            value="```\n"
-                  "!daily   - Tägliche Coins\n"
-                  "!work    - Arbeiten für Coins\n"
-                  "!beg     - Betteln für Coins\n"
-                  "!rob     - Andere Spieler ausrauben\n"
-                  "!balance - Zeigt dein Guthaben\n"
-                  "!top     - Zeigt die reichsten Spieler\n"
-                  "```",
-            inline=False
-        )
-        
-        # Casino Games
-        embed.add_field(
-            name="🎲 Casino Spiele",
-            value="```\n"
-                  "!slots    - Spielautomat\n"
-                  "!roulette - Roulette\n"
-                  "!coinflip - Münzwurf\n"
-                  "!dice     - Würfelspiel\n"
-                  "!scratch  - Rubbellos\n"
-                  "!race     - Pferderennen\n"
-                  "!yahtzee  - Würfelpoker\n"
-                  "```",
-            inline=False
-        )
-
-        # Moderation Commands
-        embed.add_field(
-            name="🛡️ Moderation",
-            value="```\n"
-                  "!kick        - Kickt einen User\n"
-                  "!ban         - Bannt einen User\n"
-                  "!timeout     - Timeout für User\n"
-                  "!untimeout   - Hebt Timeout auf\n"
-                  "!creatorroles- Erstellt Creator-Rollen\n"
-                  "```\n"
-                  "Nutze !help moderation für Details",
-            inline=False
-        )
-
-        # Counting Commands
-        embed.add_field(
-            name="🔢 Counting",
-            value="```\n"
-                  "!countingsetup - Counting einrichten\n"
-                  "!stopcounting  - Counting deaktivieren\n"
-                  "```\n"
-                  "Nutze !help counting für Details",
-            inline=False
-        )
-        
-        embed.set_footer(text="Nutze !help <befehl> für mehr Infos zu einem Befehl")
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def countingsetup(ctx, channel: discord.TextChannel):
+    """Richtet einen Counting-Kanal ein"""
     
+    # Speichere den Kanal in der Datenbank
+    cursor.execute('''
+        INSERT OR REPLACE INTO counting (guild_id, channel_id, last_number, last_user_id)
+        VALUES (?, ?, 0, 0)
+    ''', (ctx.guild.id, channel.id))
+    conn.commit()
+    
+    # Sende Bestätigung
+    embed = discord.Embed(
+        title="✅ Counting eingerichtet",
+        description=f"Der Kanal {channel.mention} wurde als Counting-Kanal eingerichtet!\n\n"
+                   "**Regeln:**\n"
+                   "• Zähle von 1 an aufwärts\n"
+                   "• Jeder darf nur eine Zahl nacheinander schreiben\n"
+                   "• Bei einem Fehler wird auf 1 zurückgesetzt",
+        color=discord.Color.green()
+    )
     await ctx.send(embed=embed)
+    
+    # Sende Startmessage im Counting-Kanal
+    embed = discord.Embed(
+        title="🔢 Counting",
+        description="Das Zählen beginnt!\nSchreibe '1' um zu starten.",
+        color=discord.Color.blue()
+    )
+    await channel.send(embed=embed)
+
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def stopcounting(ctx):
+    """Deaktiviert das Counting-System"""
+    
+    # Lösche den Counting-Kanal aus der Datenbank
+    cursor.execute('DELETE FROM counting WHERE guild_id = ?', (ctx.guild.id,))
+    conn.commit()
+    
+    # Sende Bestätigung
+    embed = discord.Embed(
+        title="✅ Counting deaktiviert",
+        description="Das Counting-System wurde deaktiviert.",
+        color=discord.Color.red()
+    )
+    await ctx.send(embed=embed)
+
+@bot.event
+async def on_message(message):
+    # Ignoriere Bot-Nachrichten
+    if message.author.bot:
+        return
+
+    # Prüfe ob es ein Counting-Kanal ist
+    cursor.execute('SELECT channel_id, last_number, last_user_id FROM counting WHERE guild_id = ?', (message.guild.id,))
+    result = cursor.fetchone()
+    
+    if result and result[0] == message.channel.id:
+        channel_id, last_number, last_user_id = result
+        
+        # Versuche die Nachricht als Zahl zu interpretieren
+        try:
+            number = int(message.content)
+            
+            # Prüfe ob es die richtige Zahl ist
+            if number == last_number + 1:
+                # Prüfe ob der User zweimal hintereinander gezählt hat
+                if message.author.id == last_user_id:
+                    await message.add_reaction("❌")
+                    embed = discord.Embed(
+                        title="❌ Fehler",
+                        description=f"{message.author.mention} du kannst nicht zweimal hintereinander zählen!\n"
+                                  "Wir fangen wieder bei 1 an.",
+                        color=discord.Color.red()
+                    )
+                    await message.channel.send(embed=embed)
+                    cursor.execute('''
+                        UPDATE counting 
+                        SET last_number = 0, last_user_id = 0 
+                        WHERE guild_id = ?
+                    ''', (message.guild.id,))
+                else:
+                    # Alles richtig, update die Datenbank
+                    await message.add_reaction("✅")
+                    cursor.execute('''
+                        UPDATE counting 
+                        SET last_number = ?, last_user_id = ? 
+                        WHERE guild_id = ?
+                    ''', (number, message.author.id, message.guild.id))
+            else:
+                # Falsche Zahl
+                await message.add_reaction("❌")
+                embed = discord.Embed(
+                    title="❌ Fehler",
+                    description=f"Die nächste Zahl wäre {last_number + 1} gewesen!\n"
+                              "Wir fangen wieder bei 1 an.",
+                    color=discord.Color.red()
+                )
+                await message.channel.send(embed=embed)
+                cursor.execute('''
+                    UPDATE counting 
+                    SET last_number = 0, last_user_id = 0 
+                    WHERE guild_id = ?
+                ''', (message.guild.id,))
+        except ValueError:
+            # Keine Zahl
+            pass
+        
+        conn.commit()
+    
+    # Verarbeite normale Befehle
+    await bot.process_commands(message)
 
 if __name__ == "__main__":
     keep_alive()  # Startet den Webserver für 24/7 Uptime
