@@ -1,15 +1,30 @@
 import os
-import discord
-from discord.ext import commands
 import random
-import datetime
+import discord
 import sqlite3
-from dotenv import load_dotenv
-from typing import Optional, List, Dict
 import asyncio
-from discord.ui import Button, View
-from flask import Flask
-from threading import Thread
+from discord.ext import commands
+from discord import app_commands
+from keep_alive import keep_alive
+
+# Bot Setup
+intents = discord.Intents.default()
+intents.message_content = True
+intents.members = True
+bot = commands.Bot(command_prefix="!", intents=intents)
+
+# Datenbank Setup
+conn = sqlite3.connect('casino.db')
+cursor = conn.cursor()
+
+# Erstelle Tabellen
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS economy (
+    user_id INTEGER PRIMARY KEY,
+    coins INTEGER DEFAULT 0
+)
+''')
+conn.commit()
 
 # Flask App für Render
 app = Flask('')
