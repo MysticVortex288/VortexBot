@@ -3,6 +3,8 @@ import random
 import discord
 import sqlite3
 import asyncio
+import datetime
+from typing import Optional, List, Dict
 from discord.ext import commands
 from discord import app_commands
 from flask import Flask
@@ -1648,8 +1650,8 @@ class ScratchView(View):
         self.revealed_positions = []
 
     def generate_symbols(self):
-        symbols = ["💎", "🎰", "7️⃣", "⭐", "🍀"]
-        weights = [0.1, 0.2, 0.2, 0.2, 0.3]  # Seltenere Symbole = höhere Gewinne
+        symbols = ["💎", "🎰", "7️⃣", "⭐", "🔔", "🍒", "🍋"]
+        weights = [0.1, 0.2, 0.2, 0.2, 0.2, 0.1, 0.1]  # Seltenere Symbole = höhere Gewinne
         return random.choices(symbols, weights=weights, k=9)
 
     async def start(self):
