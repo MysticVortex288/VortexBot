@@ -11,6 +11,9 @@ from discord.ui import View, Button
 from flask import Flask
 from threading import Thread
 
+# Deaktiviere Audio-Features
+discord.VoiceClient = None
+
 # Flask App für Render
 app = Flask('')
 
@@ -458,7 +461,12 @@ class BlackjackView(View):
     @discord.ui.button(label="Hit 🎯", style=discord.ButtonStyle.green)
     async def hit(self, interaction: discord.Interaction, button: Button):
         if interaction.user.id != self.game.player_id:
-            await interaction.response.send_message("Das ist nicht dein Spiel!", ephemeral=True)
+            embed = discord.Embed(
+                title="❌ Fehler",
+                description="Das ist nicht dein Spiel!",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
         
         self.game.player_hit()
@@ -468,7 +476,12 @@ class BlackjackView(View):
     @discord.ui.button(label="Stand 🛑", style=discord.ButtonStyle.red)
     async def stand(self, interaction: discord.Interaction, button: Button):
         if interaction.user.id != self.game.player_id:
-            await interaction.response.send_message("Das ist nicht dein Spiel!", ephemeral=True)
+            embed = discord.Embed(
+                title="❌ Fehler",
+                description="Das ist nicht dein Spiel!",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
         
         self.game.player_stood = True
@@ -504,12 +517,22 @@ async def blackjack(ctx, bet: int = None):
         return
 
     if bet < 50:
-        await ctx.send("❌ Der Minimaleinsatz ist 50 Coins!")
+        embed = discord.Embed(
+            title="❌ Fehler",
+            description="Der Mindesteinsatz ist 50 Coins!",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
         return
 
     user_coins = get_coins(ctx.author.id)
     if user_coins < bet:
-        await ctx.send("❌ Du hast nicht genug Coins!")
+        embed = discord.Embed(
+            title="❌ Fehler",
+            description=f"Du hast nicht genug Coins! Dir fehlen noch **{bet - user_coins:,}** Coins.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
         return
 
     # Ziehe Einsatz ab
@@ -560,11 +583,21 @@ class WheelView(View):
     @discord.ui.button(label="Drehen 🎡", style=discord.ButtonStyle.green)
     async def spin(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.player_id:
-            await interaction.response.send_message("Das ist nicht dein Spiel!", ephemeral=True)
+            embed = discord.Embed(
+                title="❌ Fehler",
+                description="Das ist nicht dein Spiel!",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
         
         if self.spinning:
-            await interaction.response.send_message("Das Rad dreht sich bereits!", ephemeral=True)
+            embed = discord.Embed(
+                title="❌ Fehler",
+                description="Das Rad dreht sich bereits!",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
 
         self.spinning = True
@@ -654,12 +687,22 @@ async def wheel(ctx, bet: int = None):
         return
 
     if bet < 50:
-        await ctx.send("❌ Der Minimaleinsatz ist 50 Coins!")
+        embed = discord.Embed(
+            title="❌ Fehler",
+            description="Der Minimaleinsatz ist 50 Coins!",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
         return
 
     user_coins = get_coins(ctx.author.id)
     if user_coins < bet:
-        await ctx.send("❌ Du hast nicht genug Coins!")
+        embed = discord.Embed(
+            title="❌ Fehler",
+            description=f"Du hast nicht genug Coins! Dir fehlen noch **{bet - user_coins:,}** Coins.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
         return
 
     # Ziehe Einsatz ab
@@ -694,12 +737,12 @@ class SlotsGame:
     
     def get_win_multiplier(self, result: list[str]) -> tuple[float, str]:
         # Alle gleich
-        if len(set(result)) == 1:
+        if len(set(result)) == 1:  # Alle Symbole gleich
             symbol = result[0]
             return self.symbols[symbol]["multiplier"], f"3x {symbol}"
         
         # Zwei gleich
-        if len(set(result)) == 2:
+        if len(set(result)) == 2:  # Zwei gleiche Symbole
             for symbol in result:
                 if result.count(symbol) == 2:
                     return self.symbols[symbol]["multiplier"] * 0.5, f"2x {symbol}"
@@ -734,7 +777,12 @@ class SlotsView(View):
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user != self.ctx.author:
-            await interaction.response.send_message("Das ist nicht dein Spiel!", ephemeral=True)
+            embed = discord.Embed(
+                title="❌ Fehler",
+                description="Das ist nicht dein Spiel!",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return False
         return True
 
@@ -747,7 +795,12 @@ class SlotsView(View):
     @discord.ui.button(label="Drehen", style=discord.ButtonStyle.success, emoji="🎰")
     async def spin(self, interaction: discord.Interaction, button: Button):
         if self.spinning:
-            await interaction.response.send_message("Die Walzen drehen sich bereits!", ephemeral=True)
+            embed = discord.Embed(
+                title="❌ Fehler",
+                description="Die Walzen drehen sich bereits!",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
 
         self.spinning = True
@@ -824,12 +877,22 @@ async def slots(ctx, bet_amount: int = None):
         return
 
     if bet_amount < 1:
-        await ctx.send("❌ Der Mindesteinsatz ist 1 Coin!")
+        embed = discord.Embed(
+            title="❌ Fehler",
+            description="Der Mindesteinsatz ist 1 Coin!",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
         return
 
     balance = get_coins(ctx.author.id)
     if balance < bet_amount:
-        await ctx.send("❌ Du hast nicht genug Coins!")
+        embed = discord.Embed(
+            title="❌ Fehler",
+            description=f"Du hast nicht genug Coins! Dir fehlen noch **{bet_amount - balance:,}** Coins.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
         return
 
     update_coins(ctx.author.id, -bet_amount)
@@ -899,7 +962,12 @@ class RouletteView(View):
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user != self.ctx.author:
-            await interaction.response.send_message("Das ist nicht dein Spiel!", ephemeral=True)
+            embed = discord.Embed(
+                title="❌ Fehler",
+                description="Das ist nicht dein Spiel!",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return False
         return True
 
@@ -931,7 +999,12 @@ class RouletteView(View):
 
     async def spin_roulette(self, interaction: discord.Interaction, bet_type: str):
         if self.spinning:
-            await interaction.response.send_message("Das Rad dreht sich bereits!", ephemeral=True)
+            embed = discord.Embed(
+                title="❌ Fehler",
+                description="Das Rad dreht sich bereits!",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
 
         self.spinning = True
@@ -963,7 +1036,7 @@ class RouletteView(View):
         won = False
         winnings = 0
         
-        # Prüfe Gewinn
+        # Prüfe auf Gewinn
         if bet_type == "Rot" and result_color == "🔴":
             won = True
             winnings = self.bet_amount * 2
@@ -1011,12 +1084,22 @@ async def roulette(ctx, bet_amount: int = None):
         return
 
     if bet_amount < 1:
-        await ctx.send("❌ Der Mindesteinsatz ist 1 Coin!")
+        embed = discord.Embed(
+            title="❌ Fehler",
+            description="Der Mindesteinsatz ist 1 Coin!",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
         return
 
     balance = get_coins(ctx.author.id)
     if balance < bet_amount:
-        await ctx.send("❌ Du hast nicht genug Coins!")
+        embed = discord.Embed(
+            title="❌ Fehler",
+            description=f"Du hast nicht genug Coins! Dir fehlen noch **{bet_amount - balance:,}** Coins.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
         return
 
     update_coins(ctx.author.id, -bet_amount)
@@ -1034,14 +1117,19 @@ class CoinflipView(View):
     async def start(self):
         embed = discord.Embed(
             title="🎰 Coinflip",
-            description=f"Wähle Kopf oder Zahl!\nEinsatz: {self.bet_amount} Coins",
+            description="Wähle Kopf oder Zahl!\nEinsatz: {self.bet_amount} Coins",
             color=discord.Color.gold()
         )
         self.message = await self.ctx.send(embed=embed, view=self)
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user != self.ctx.author:
-            await interaction.response.send_message("Das ist nicht dein Spiel!", ephemeral=True)
+            embed = discord.Embed(
+                title="❌ Fehler",
+                description="Das ist nicht dein Spiel!",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return False
         return True
 
@@ -1105,17 +1193,32 @@ async def coinflip(ctx, bet_amount: int = None, choice: str = None):
         return
 
     if bet_amount < 1:
-        await ctx.send("❌ Der Mindesteinsatz ist 1 Coin!")
+        embed = discord.Embed(
+            title="❌ Fehler",
+            description="Der Mindesteinsatz ist 1 Coin!",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
         return
 
     choice = choice.lower()
     if choice not in ['kopf', 'zahl']:
-        await ctx.send("❌ Bitte wähle 'kopf' oder 'zahl'!")
+        embed = discord.Embed(
+            title="❌ Fehler",
+            description="Bitte wähle 'kopf' oder 'zahl'!",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
         return
 
     user_coins = get_coins(ctx.author.id)
     if user_coins < bet_amount:
-        await ctx.send("❌ Du hast nicht genug Coins!")
+        embed = discord.Embed(
+            title="❌ Fehler",
+            description=f"Du hast nicht genug Coins! Dir fehlen noch **{bet_amount - user_coins:,}** Coins.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
         return
 
     # Münzwurf Animation
@@ -1179,7 +1282,12 @@ class ScratchView(View):
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user != self.ctx.author:
-            await interaction.response.send_message("Das ist nicht dein Spiel!", ephemeral=True)
+            embed = discord.Embed(
+                title="❌ Fehler",
+                description="Das ist nicht dein Spiel!",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return False
         return True
 
@@ -1240,7 +1348,12 @@ class ScratchView(View):
 
     async def reveal(self, interaction: discord.Interaction, position: int, button: discord.ui.Button):
         if self.revealed >= 3:
-            await interaction.response.send_message("Du hast bereits 3 Felder aufgedeckt!", ephemeral=True)
+            embed = discord.Embed(
+                title="❌ Fehler",
+                description="Du hast bereits 3 Felder aufgedeckt!",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
 
         self.revealed += 1
@@ -1295,12 +1408,22 @@ async def scratch(ctx, bet_amount: int = None):
         return
 
     if bet_amount < 1:
-        await ctx.send("❌ Der Mindesteinsatz ist 1 Coin!")
+        embed = discord.Embed(
+            title="❌ Fehler",
+            description="Der Mindesteinsatz ist 1 Coin!",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
         return
 
     balance = get_coins(ctx.author.id)
     if balance < bet_amount:
-        await ctx.send("❌ Du hast nicht genug Coins!")
+        embed = discord.Embed(
+            title="❌ Fehler",
+            description=f"Du hast nicht genug Coins! Dir fehlen noch **{bet_amount - balance:,}** Coins.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
         return
 
     update_coins(ctx.author.id, -bet_amount)
@@ -1419,12 +1542,22 @@ async def dice(ctx, bet_amount: int = None):
         return
 
     if bet_amount < 1:
-        await ctx.send("❌ Der Mindesteinsatz ist 1 Coin!")
+        embed = discord.Embed(
+            title="❌ Fehler",
+            description="Der Mindesteinsatz ist 1 Coin!",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
         return
 
     balance = get_coins(ctx.author.id)
     if balance < bet_amount:
-        await ctx.send("❌ Du hast nicht genug Coins!")
+        embed = discord.Embed(
+            title="❌ Fehler",
+            description=f"Du hast nicht genug Coins! Dir fehlen noch **{bet_amount - balance:,}** Coins.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
         return
 
     update_coins(ctx.author.id, -bet_amount)
@@ -1595,7 +1728,12 @@ class YahtzeeView(View):
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user != self.ctx.author:
-            await interaction.response.send_message("Das ist nicht dein Spiel!", ephemeral=True)
+            embed = discord.Embed(
+                title="❌ Fehler",
+                description="Das ist nicht dein Spiel!",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return False
         return True
 
@@ -1608,11 +1746,21 @@ class YahtzeeView(View):
     @discord.ui.button(label="Würfeln", style=discord.ButtonStyle.success, emoji="🎲", row=0)
     async def roll(self, interaction: discord.Interaction, button: Button):
         if self.rolling:
-            await interaction.response.send_message("Die Würfel rollen bereits!", ephemeral=True)
+            embed = discord.Embed(
+                title="❌ Fehler",
+                description="Die Würfel rollen bereits!",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
 
         if self.rolls_left <= 0:
-            await interaction.response.send_message("Keine Würfe mehr übrig!", ephemeral=True)
+            embed = discord.Embed(
+                title="❌ Fehler",
+                description="Keine Würfe mehr übrig!",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
 
         self.rolling = True
@@ -1666,7 +1814,12 @@ class YahtzeeView(View):
     @discord.ui.button(label="Würfel 1", style=discord.ButtonStyle.secondary, row=1)
     async def toggle_die_1(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self.rolling:
-            await interaction.response.send_message("Warte bis die Würfel aufhören zu rollen!", ephemeral=True)
+            embed = discord.Embed(
+                title="❌ Fehler",
+                description="Warte bis die Würfel aufhören zu rollen!",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
         self.kept_dice[0] = not self.kept_dice[0]
         button.style = discord.ButtonStyle.primary if self.kept_dice[0] else discord.ButtonStyle.secondary
@@ -1676,7 +1829,12 @@ class YahtzeeView(View):
     @discord.ui.button(label="Würfel 2", style=discord.ButtonStyle.secondary, row=1)
     async def toggle_die_2(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self.rolling:
-            await interaction.response.send_message("Warte bis die Würfel aufhören zu rollen!", ephemeral=True)
+            embed = discord.Embed(
+                title="❌ Fehler",
+                description="Warte bis die Würfel aufhören zu rollen!",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
         self.kept_dice[1] = not self.kept_dice[1]
         button.style = discord.ButtonStyle.primary if self.kept_dice[1] else discord.ButtonStyle.secondary
@@ -1686,7 +1844,12 @@ class YahtzeeView(View):
     @discord.ui.button(label="Würfel 3", style=discord.ButtonStyle.secondary, row=1)
     async def toggle_die_3(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self.rolling:
-            await interaction.response.send_message("Warte bis die Würfel aufhören zu rollen!", ephemeral=True)
+            embed = discord.Embed(
+                title="❌ Fehler",
+                description="Warte bis die Würfel aufhören zu rollen!",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
         self.kept_dice[2] = not self.kept_dice[2]
         button.style = discord.ButtonStyle.primary if self.kept_dice[2] else discord.ButtonStyle.secondary
@@ -1696,7 +1859,12 @@ class YahtzeeView(View):
     @discord.ui.button(label="Würfel 4", style=discord.ButtonStyle.secondary, row=2)
     async def toggle_die_4(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self.rolling:
-            await interaction.response.send_message("Warte bis die Würfel aufhören zu rollen!", ephemeral=True)
+            embed = discord.Embed(
+                title="❌ Fehler",
+                description="Warte bis die Würfel aufhören zu rollen!",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
         self.kept_dice[3] = not self.kept_dice[3]
         button.style = discord.ButtonStyle.primary if self.kept_dice[3] else discord.ButtonStyle.secondary
@@ -1706,7 +1874,12 @@ class YahtzeeView(View):
     @discord.ui.button(label="Würfel 5", style=discord.ButtonStyle.secondary, row=2)
     async def toggle_die_5(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self.rolling:
-            await interaction.response.send_message("Warte bis die Würfel aufhören zu rollen!", ephemeral=True)
+            embed = discord.Embed(
+                title="❌ Fehler",
+                description="Warte bis die Würfel aufhören zu rollen!",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
         self.kept_dice[4] = not self.kept_dice[4]
         button.style = discord.ButtonStyle.primary if self.kept_dice[4] else discord.ButtonStyle.secondary
@@ -1737,12 +1910,22 @@ async def yahtzee(ctx, bet_amount: int = None):
         return
 
     if bet_amount < 1:
-        await ctx.send("❌ Der Mindesteinsatz ist 1 Coin!")
+        embed = discord.Embed(
+            title="❌ Fehler",
+            description="Der Mindesteinsatz ist 1 Coin!",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
         return
 
     balance = get_coins(ctx.author.id)
     if balance < bet_amount:
-        await ctx.send("❌ Du hast nicht genug Coins!")
+        embed = discord.Embed(
+            title="❌ Fehler",
+            description=f"Du hast nicht genug Coins! Dir fehlen noch **{bet_amount - balance:,}** Coins.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
         return
 
     update_coins(ctx.author.id, -bet_amount)
@@ -1752,14 +1935,17 @@ async def yahtzee(ctx, bet_amount: int = None):
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
-        minutes = int(error.retry_after / 60)
+        hours = int(error.retry_after // 3600)
+        minutes = int((error.retry_after % 3600) // 60)
         seconds = int(error.retry_after % 60)
+        
         embed = discord.Embed(
             title="⏰ Cooldown",
-            description=f"Dieser Befehl ist noch im Cooldown!\nVersuche es in {minutes}m {seconds}s erneut.",
+            description=f"Du musst noch **{hours}h {minutes}m {seconds}s** warten!",
             color=discord.Color.orange()
         )
         await ctx.send(embed=embed)
+    
     elif isinstance(error, commands.MissingPermissions):
         embed = discord.Embed(
             title="❌ Keine Berechtigung",
@@ -1767,31 +1953,19 @@ async def on_command_error(ctx, error):
             color=discord.Color.red()
         )
         await ctx.send(embed=embed)
-    elif isinstance(error, commands.CommandNotFound):
+        
+    elif isinstance(error, commands.MemberNotFound):
         embed = discord.Embed(
-            title="❓ Unbekannter Befehl",
-            description="Dieser Befehl existiert nicht!\nNutze `!help` für eine Liste aller Befehle.",
+            title="❌ Mitglied nicht gefunden",
+            description="Dieser User wurde nicht gefunden!",
             color=discord.Color.red()
         )
         await ctx.send(embed=embed)
-    elif isinstance(error, commands.MissingRequiredArgument):
-        embed = discord.Embed(
-            title="❌ Fehlende Argumente",
-            description="Dir fehlen wichtige Angaben für diesen Befehl!\nNutze `!help <befehl>` für Hilfe.",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed)
-    elif isinstance(error, commands.BadArgument):
-        embed = discord.Embed(
-            title="❌ Ungültige Argumente",
-            description="Deine Eingabe ist ungültig!\nNutze `!help <befehl>` für Hilfe.",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed)
+        
     else:
         embed = discord.Embed(
             title="❌ Fehler",
-            description=f"Ein Fehler ist aufgetreten:\n```{str(error)}```",
+            description=f"Ein unerwarteter Fehler ist aufgetreten: {str(error)}",
             color=discord.Color.red()
         )
         await ctx.send(embed=embed)
