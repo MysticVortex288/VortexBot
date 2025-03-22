@@ -8,8 +8,22 @@ from dotenv import load_dotenv
 from typing import Optional, List, Dict
 import asyncio
 from discord.ui import Button, View
-import time
-from discord import app_commands
+from flask import Flask
+from threading import Thread
+
+# Flask App für Render
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "Bot ist online!"
+
+def run():
+    app.run(host='0.0.0.0', port=10000)
+
+def keep_alive():
+    t = Thread(target=run)
+    t.start()
 
 # Lade Umgebungsvariablen
 load_dotenv()
@@ -2194,6 +2208,5 @@ async def yahtzee(ctx, bet_amount: int = None):
 
 # Wenn die Datei direkt ausgeführt wird
 if __name__ == "__main__":
-    from server import keep_alive
     keep_alive()  # Startet den Webserver für 24/7 Uptime
     bot.run(os.getenv('DISCORD_TOKEN'))
