@@ -7,6 +7,7 @@ import datetime
 from typing import Optional, List, Dict
 from discord.ext import commands
 from discord import app_commands
+from discord.ui import View, Button
 from flask import Flask
 from threading import Thread
 
@@ -1189,7 +1190,7 @@ class SlotsView(View):
         display = f"┃ {' '.join(result)} ┃"
 
         # Prüfe auf Gewinn
-        if len(set(result)) == 1:  # Alle gleich
+        if len(set(result)) == 1:  # Alle Symbole gleich
             symbol = result[0]
             multipliers = {"💎": 50, "7️⃣": 20, "🍀": 10, "⭐": 5, "🔔": 3, "🍒": 2, "🍋": 1.5}
             winnings = int(self.bet_amount * multipliers[symbol])
