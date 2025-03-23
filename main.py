@@ -9,6 +9,8 @@ import asyncio
 from discord import app_commands
 from discord.ui import View, Button
 import requests
+import datetime
+from typing import Optional
 
 # Flask Setup für den Webserver
 app = Flask('')
@@ -119,7 +121,7 @@ def update_coins(user_id: int, amount: int):
     cursor.execute("INSERT OR REPLACE INTO economy (user_id, balance) VALUES (?, ?)", (user_id, new_coins))
     conn.commit()
 
-def get_last_used(user_id: int, command: str) -> datetime.datetime:
+def get_last_used(user_id: int, command: str) -> Optional[datetime.datetime]:
     cursor.execute("SELECT last_used FROM cooldowns WHERE user_id = ? AND command = ?", (user_id, command))
     result = cursor.fetchone()
     if result:
