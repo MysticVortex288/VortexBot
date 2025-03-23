@@ -2463,8 +2463,19 @@ async def on_message(message):
     if is_funki_channel and not message.content.startswith('!'):
         # Zeige "schreibt..." Indikator
         async with message.channel.typing():
-            # Generiere eine Antwort basierend auf der Nachricht
-            response = await generate_response(message.content)
+            # Generiere eine kontextbezogene Antwort
+            prompt = message.content.lower()
+            
+            if "hausaufgabe" in prompt or "schule" in prompt:
+                response = "Ich helfe dir gerne bei den Hausaufgaben! Was genau verstehst du nicht? Lass uns das Schritt für Schritt durchgehen."
+            elif "spiel" in prompt or "game" in prompt:
+                response = "Oh, du möchtest spielen? Ich kenne viele Spiele! Wir haben Blackjack, Slots, Roulette und mehr. Was möchtest du spielen?"
+            elif "wie geht" in prompt or "hilfe" in prompt:
+                response = f"Klar, ich helfe dir bei '{message.content}'! Was möchtest du genau wissen?"
+            elif "?" in prompt:
+                response = f"Gute Frage! Lass mich dir bei '{message.content}' helfen."
+            else:
+                response = f"Ich verstehe dein Anliegen '{message.content}'. Lass uns darüber reden!"
         
         # Erstelle ein schönes Embed
         embed = discord.Embed(
@@ -2477,9 +2488,9 @@ async def on_message(message):
         # Sende die Antwort
         await message.channel.send(embed=embed)
         return  # Beende hier, keine weiteren Befehle verarbeiten
-    elif is_funki_channel:
-        # Verarbeite normale Befehle nur wenn es kein Spezial-Kanal ist
-        await bot.process_commands(message)
+    
+    # Verarbeite normale Befehle
+    await bot.process_commands(message)
 
 async def generate_response(prompt: str) -> str:
     # OpenAI Setup
