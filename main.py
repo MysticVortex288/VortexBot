@@ -2091,10 +2091,8 @@ async def yahtzee(ctx, bet_amount: int = None):
 @bot.event
 async def on_command_error(ctx, error):
     # Verhindere doppelte Error-Nachrichten
-    if getattr(ctx, 'error_handled', False):
+    if hasattr(ctx.command, 'on_error'):
         return
-    
-    ctx.error_handled = True
 
     # Ignoriere CommandNotFound Errors
     if isinstance(error, commands.CommandNotFound):
@@ -2124,6 +2122,10 @@ async def on_command_error(ctx, error):
         embed.title = "❌ Fehler"
         embed.description = str(error)
     
+    # Setze ein Flag, dass der Error behandelt wurde
+    ctx.error_handled = True
+    
+    # Sende die Nachricht
     await ctx.send(embed=embed)
 
 @bot.command()
