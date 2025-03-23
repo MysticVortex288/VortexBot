@@ -58,34 +58,26 @@ async def generate_response(prompt: str) -> str:
         
         # Erstelle die Anfrage
         data = {
-            "prompt": f"Du bist ein freundlicher Discord Bot. Antworte auf: {prompt}",
-            "max_length": 100,
-            "temperature": 0.7
+            "prompt": f"Du bist ein freundlicher Discord Bot. Antworte kurz und natürlich auf: {prompt}",
+            "max_length": 50,
+            "temperature": 0.7,
+            "top_p": 0.9,
+            "stop": ["\n", "User:", "Bot:"]
         }
         
         # Sende Anfrage
         async with aiohttp.ClientSession() as session:
-            async with session.post(api_url, json=data) as response:
+            async with session.post(api_url, json=data, timeout=5) as response:
                 if response.status == 200:
                     json_response = await response.json()
                     # Entferne den Prompt aus der Antwort
                     answer = json_response['text'].replace(data['prompt'], '').strip()
-                    return answer if answer else "Ich verstehe! Erzähl mir mehr."
+                    return answer if answer else "Entschuldigung, ich verstehe nicht ganz. Kannst du das anders formulieren?"
                 else:
-                    return random.choice([
-                        "Das ist interessant! Erzähl mir mehr darüber.",
-                        "Spannend! Was denkst du darüber?",
-                        "Das klingt gut! Wie bist du darauf gekommen?",
-                        "Verstehe! Lass uns mehr darüber reden."
-                    ])
+                    return "Tut mir leid, ich habe gerade Probleme mit dem Denken. Kannst du das später nochmal versuchen?"
             
     except Exception as e:
-        return random.choice([
-            "Das ist interessant! Erzähl mir mehr darüber.",
-            "Spannend! Was denkst du darüber?",
-            "Das klingt gut! Wie bist du darauf gekommen?",
-            "Verstehe! Lass uns mehr darüber reden."
-        ])
+        return "Entschuldigung, ich hatte einen Aussetzer. Versuche es bitte nochmal!"
 
 @bot.event
 async def on_message(message):
@@ -110,18 +102,6 @@ async def on_message(message):
     
     # Verarbeite normale Befehle
     await bot.process_commands(message)
-
-@bot.command(name="setupki")
-@commands.has_permissions(administrator=True)
-async def setupki(ctx, channel: discord.TextChannel):
-    # Füge den Kanal zur Datenbank hinzu
-    cursor.execute('''
-        INSERT OR REPLACE INTO funki_channels (guild_id, channel_id)
-        VALUES (?, ?)
-    ''', (ctx.guild.id, channel.id))
-    conn.commit()
-    
-    await ctx.send(f"KI-System wurde in {channel.mention} eingerichtet!")
 
 # Hilfsfunktionen
 def get_coins(user_id: int) -> int:
@@ -2270,6 +2250,7 @@ async def setupwelcome(ctx):
     # Erstelle/Prüfe Member-Rolle
     member_role = discord.utils.get(ctx.guild.roles, name="Member")
     if not member_role:
+        # Erstelle die Rolle wenn sie nicht existiert
         member_role = await ctx.guild.create_role(
             name="Member",
             color=discord.Color.blue(),
@@ -2464,6 +2445,18 @@ async def on_member_join(member):
         embed.set_thumbnail(url=member.display_avatar.url)
         embed.timestamp = datetime.datetime.now()
         await welcome_channel.send(embed=embed)
+
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def setupki(ctx, channel: discord.TextChannel):
+    # Füge den Kanal zur Datenbank hinzu
+    cursor.execute('''
+        INSERT OR REPLACE INTO funki_channels (guild_id, channel_id)
+        VALUES (?, ?)
+    ''', (ctx.guild.id, channel.id))
+    conn.commit()
+    
+    await ctx.send(f"KI-System wurde in {channel.mention} eingerichtet!")
 
 @bot.event
 async def on_member_remove(member):
