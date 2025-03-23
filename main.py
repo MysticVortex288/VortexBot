@@ -3,7 +3,6 @@ import random
 import discord
 import sqlite3
 import asyncio
-import datetime
 from typing import Optional, List, Dict
 from discord.ext import commands
 from discord import app_commands
@@ -11,6 +10,7 @@ from discord.ui import View, Button
 from flask import Flask
 import openai  # OpenAI für die KI-Integration
 from threading import Thread
+from transformers import pipeline  # Für KI-Generierung
 
 # Deaktiviere Audio-Features vollständig
 import sys
@@ -41,6 +41,11 @@ bot = commands.Bot(
     intents=intents,
     help_command=None  # Deaktiviert den Standard-Help-Command
 )
+
+# Initialisiere die KI
+print("Lade KI-Modell...")
+generator = pipeline('text-generation', model='gpt2')
+print("KI-Modell geladen!")
 
 # Datenbank Setup
 conn = sqlite3.connect('casino.db')
@@ -2463,27 +2468,59 @@ async def on_message(message):
     if is_funki_channel and not message.content.startswith('!'):
         # Zeige "schreibt..." Indikator
         async with message.channel.typing():
-            # Generiere eine kontextbezogene Antwort
+            # Generiere eine natürliche Antwort
             prompt = message.content.lower()
             
-            if "hausaufgabe" in prompt or "schule" in prompt:
-                response = "Ich helfe dir gerne bei den Hausaufgaben! Was genau verstehst du nicht? Lass uns das Schritt für Schritt durchgehen."
-            elif "spiel" in prompt or "game" in prompt:
-                response = "Oh, du möchtest spielen? Ich kenne viele Spiele! Wir haben Blackjack, Slots, Roulette und mehr. Was möchtest du spielen?"
-            elif "wie geht" in prompt or "hilfe" in prompt:
-                response = f"Klar, ich helfe dir bei '{message.content}'! Was möchtest du genau wissen?"
+            # Begrüßungen
+            if any(word in prompt for word in ["hi", "hallo", "hey", "moin", "servus"]):
+                responses = [
+                    "Hey! Wie geht's dir heute?",
+                    f"Hi {message.author.name}! Was hast du heute so vor?",
+                    "Hallo! Schön dich zu sehen! Was gibt's Neues?",
+                    "Hey! Erzähl mir von deinem Tag!"
+                ]
+                response = random.choice(responses)
+            
+            # Hausaufgaben & Lernen
+            elif any(word in prompt for word in ["hausaufgabe", "schule", "lernen", "mathe", "deutsch"]):
+                if "mathe" in prompt:
+                    response = "Mathe kann manchmal knifflig sein! Welche Aufgabe macht dir Probleme? Ich bin gut in Mathe und erkläre es dir gerne Schritt für Schritt."
+                elif "deutsch" in prompt:
+                    response = "Deutsch ist eine spannende Sprache! Brauchst du Hilfe bei der Grammatik, einem Aufsatz oder der Interpretation eines Textes?"
+                else:
+                    response = "Klar helfe ich dir beim Lernen! In welchem Fach brauchst du Unterstützung? Ich kenne mich in vielen Bereichen aus."
+
+            # Spiele
+            elif "spiel" in prompt:
+                if "wie" in prompt:
+                    response = "Die Spielregeln sind ganz einfach! Bei Blackjack versuchst du näher an 21 zu kommen als der Dealer. Möchtest du es ausprobieren?"
+                else:
+                    response = "Ich liebe Spiele! Blackjack ist mein Favorit - da braucht man Strategie und ein bisschen Glück. Willst du eine Runde spielen?"
+
+            # Persönliche Fragen
+            elif any(word in prompt for word in ["wie geht", "was machst", "wie bist"]):
+                response = "Mir geht es super! Ich lerne gerade viel von den Gesprächen mit euch. Und wie läuft's bei dir?"
+
+            # Hilfe
+            elif "hilfe" in prompt or "help" in prompt:
+                response = f"Ich sehe, du brauchst Hilfe bei '{message.content}'. Das ist kein Problem! Ich kenne mich damit aus. Was genau möchtest du wissen?"
+
+            # Fragen
             elif "?" in prompt:
-                response = f"Gute Frage! Lass mich dir bei '{message.content}' helfen."
+                if "warum" in prompt:
+                    response = f"Das ist eine gute Frage! Lass mich nachdenken... {message.content} - Das könnte daran liegen, dass..."
+                else:
+                    response = f"Interessante Frage! Ich denke, dass {message.content[:-1]} damit zu tun hat, dass..."
+
+            # Standardantwort
             else:
-                response = f"Ich verstehe dein Anliegen '{message.content}'. Lass uns darüber reden!"
+                response = f"Das ist ein spannendes Thema! {message.content} - Darüber würde ich gerne mehr erfahren. Was interessiert dich daran besonders?"
         
         # Erstelle ein schönes Embed
         embed = discord.Embed(
-            title="🤖 Antwort",
-            description=response,
+            description=response,  # Kein Titel mehr, macht es natürlicher
             color=discord.Color.purple()
         )
-        embed.set_footer(text=f"Antwort für: {message.author.display_name}")
         
         # Sende die Antwort
         await message.channel.send(embed=embed)
@@ -2493,23 +2530,27 @@ async def on_message(message):
     await bot.process_commands(message)
 
 async def generate_response(prompt: str) -> str:
-    # OpenAI Setup
-    openai.api_key = os.getenv('OPENAI_API_KEY')
-
     try:
-        # Sende Anfrage an OpenAI
-        response = await openai.ChatCompletion.acreate(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "Du bist ein hilfreicher Discord Bot-Assistent. Antworte freundlich, präzise und hilfreich auf die Fragen und Anliegen der Nutzer. Halte deine Antworten kurz und relevant."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=150,  # Begrenzt die Antwortlänge
-            temperature=0.7  # Balanciert Kreativität und Fokus
+        # Generiere eine Antwort mit der KI
+        response = generator(
+            prompt,
+            max_length=100,
+            num_return_sequences=1,
+            temperature=0.7,
+            pad_token_id=50256
         )
-        return response.choices[0].message.content
+        
+        # Extrahiere die generierte Antwort
+        generated_text = response[0]['generated_text']
+        
+        # Entferne den ursprünglichen Prompt und säubere die Antwort
+        answer = generated_text[len(prompt):].strip()
+        if not answer:
+            answer = generated_text  # Falls die Antwort leer ist, nimm den ganzen Text
+            
+        return answer
     except Exception as e:
-        return f"Entschuldigung, ich konnte keine passende Antwort generieren. Fehler: {str(e)}"
+        return "Entschuldigung, ich konnte gerade keine Antwort generieren. Versuche es bitte nochmal!"
 
 @bot.command()
 @commands.has_permissions(administrator=True)
@@ -2525,8 +2566,8 @@ async def setupki(ctx, channel: discord.TextChannel):
         title="✅ KI-System eingerichtet!",
         description=f"Der Kanal {channel.mention} wurde als KI-Kanal eingerichtet.\n\n"
                    "**So funktioniert's:**\n"
-                   "1. Schreibe einfach eine Nachricht in den Kanal\n"
-                   "2. Die KI wird dir eine passende Antwort geben! 😄\n\n"
+                   "1. Richte zuerst mit `!setupki #kanal` einen Kanal ein\n"
+                   "2. Schreibe dann einfach in diesem Kanal und die KI wird antworten! 😄\n\n"
                    "**Hinweis:** Befehle funktionieren in diesem Kanal nicht!",
         color=discord.Color.green()
     )
