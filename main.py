@@ -9,8 +9,8 @@ from discord.ext import commands
 from discord import app_commands
 from discord.ui import View, Button
 from flask import Flask
-from threading import Thread
 import openai  # OpenAI für die KI-Integration
+from threading import Thread
 
 # Deaktiviere Audio-Features vollständig
 import sys
@@ -29,8 +29,8 @@ def run():
     app.run(host='0.0.0.0', port=8080)
 
 def keep_alive():
-    t = Thread(target=run)
-    t.start()
+    server = Thread(target=run)
+    server.start()
 
 # Bot Setup
 intents = discord.Intents.default()
