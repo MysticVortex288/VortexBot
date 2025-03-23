@@ -6,6 +6,7 @@ import discord
 from discord.ext import commands
 import sqlite3
 import asyncio
+import aiohttp
 from discord import app_commands
 from discord.ui import View, Button
 import requests
@@ -52,77 +53,39 @@ conn.commit()
 
 async def generate_response(prompt: str) -> str:
     try:
-        # Analysiere den Prompt
-        prompt = prompt.lower()
-        words = prompt.split()
+        # Free Text Generation API
+        api_url = "https://api.textgen.dev/api/v1/generate"
         
-        # Erkenne das Hauptthema
-        topics = {
-            "schule": ["schule", "hausaufgaben", "lernen", "unterricht", "lehrer"],
-            "mathe": ["mathe", "mathematik", "rechnen", "algebra", "geometrie"],
-            "deutsch": ["deutsch", "sprache", "grammatik", "aufsatz", "text"],
-            "spiele": ["spiel", "spielen", "game", "gaming", "zocken"],
-            "computer": ["computer", "pc", "laptop", "windows", "programm"],
-            "sport": ["sport", "fußball", "training", "fitness", "spielen"],
-            "musik": ["musik", "song", "singen", "instrument", "konzert"],
-            "essen": ["essen", "kochen", "rezept", "hunger", "food"]
+        # Erstelle die Anfrage
+        data = {
+            "prompt": f"Du bist ein freundlicher Discord Bot. Antworte auf: {prompt}",
+            "max_length": 100,
+            "temperature": 0.7
         }
         
-        # Finde das Hauptthema
-        main_topic = None
-        for topic, keywords in topics.items():
-            if any(word in prompt for word in keywords):
-                main_topic = topic
-                break
-        
-        # Generiere eine themenbasierte Antwort
-        if "?" in prompt:  # Frage
-            if "wie" in prompt:
-                if main_topic == "schule":
-                    return "Bei Schulaufgaben ist es wichtig, Schritt für Schritt vorzugehen. Lass uns zusammen einen Lernplan erstellen. Was genau verstehst du nicht?"
-                elif main_topic == "mathe":
-                    return "In Mathe ist es wichtig, die Grundlagen zu verstehen. Welche Art von Aufgabe macht dir Schwierigkeiten? Ich kann dir die Lösungsschritte erklären."
-                elif main_topic == "spiele":
-                    return "Spiele lernt man am besten durch Übung. Ich kann dir Tipps und Strategien zeigen. In welchem Spiel brauchst du Hilfe?"
+        # Sende Anfrage
+        async with aiohttp.ClientSession() as session:
+            async with session.post(api_url, json=data) as response:
+                if response.status == 200:
+                    json_response = await response.json()
+                    # Entferne den Prompt aus der Antwort
+                    answer = json_response['text'].replace(data['prompt'], '').strip()
+                    return answer if answer else "Ich verstehe! Erzähl mir mehr."
                 else:
-                    return "Das ist eine interessante Frage! Lass uns das systematisch angehen. Was genau möchtest du wissen?"
-            
-            elif "warum" in prompt:
-                if main_topic:
-                    return f"Das ist eine gute Frage zum Thema {main_topic}! Es gibt dafür mehrere Gründe. Der wichtigste ist..."
-                else:
-                    return "Gute Frage! Lass mich kurz nachdenken... Es könnte daran liegen, dass..."
-            
-            elif "wann" in prompt or "wo" in prompt:
-                return "Das hängt von verschiedenen Faktoren ab. Lass uns die wichtigsten durchgehen..."
-        
-        elif "hilfe" in prompt or "help" in prompt:
-            if main_topic == "schule":
-                return "Klar helfe ich dir bei den Schulaufgaben! In welchem Fach brauchst du Unterstützung? Ich kann dir beim Lernen, bei Hausaufgaben oder bei der Vorbereitung auf Tests helfen."
-            elif main_topic == "computer":
-                return "Bei Computerproblemen ist es wichtig, systematisch vorzugehen. Beschreibe mir genau, was nicht funktioniert, dann finden wir eine Lösung."
-            else:
-                return "Ich helfe dir gerne! Lass uns das Problem Schritt für Schritt angehen. Was bereitet dir Schwierigkeiten?"
-        
-        elif any(word in prompt for word in ["danke", "thanks", "thx"]):
-            return "Gerne! Wenn du noch weitere Fragen hast, bin ich für dich da!"
-        
-        else:
-            if main_topic == "schule":
-                return "Schule kann manchmal herausfordernd sein. In welchem Fach möchtest du dich verbessern? Ich kann dir Lerntipps geben!"
-            elif main_topic == "mathe":
-                return "Mathe macht mehr Spaß, wenn man die Konzepte versteht. Sollen wir zusammen üben?"
-            elif main_topic == "spiele":
-                return "Gaming ist eine tolle Freizeitbeschäftigung! Welches Spiel ist dein Favorit? Vielleicht kann ich dir ein paar Tricks zeigen."
-            elif main_topic == "musik":
-                return "Musik verbindet Menschen! Spielst du ein Instrument oder hörst du lieber zu? Lass uns über deine Lieblingsmusik sprechen."
-            elif main_topic == "sport":
-                return "Sport ist wichtig für Körper und Geist! Welche Sportart machst du am liebsten? Ich kenne viele Übungen und Trainingstipps."
-            else:
-                return "Das klingt spannend! Was interessiert dich besonders daran? Ich würde gerne mehr darüber erfahren und dir meine Gedanken dazu mitteilen."
+                    return random.choice([
+                        "Das ist interessant! Erzähl mir mehr darüber.",
+                        "Spannend! Was denkst du darüber?",
+                        "Das klingt gut! Wie bist du darauf gekommen?",
+                        "Verstehe! Lass uns mehr darüber reden."
+                    ])
             
     except Exception as e:
-        return "Entschuldigung, ich hatte gerade einen Aussetzer. Kannst du das bitte nochmal anders formulieren?"
+        return random.choice([
+            "Das ist interessant! Erzähl mir mehr darüber.",
+            "Spannend! Was denkst du darüber?",
+            "Das klingt gut! Wie bist du darauf gekommen?",
+            "Verstehe! Lass uns mehr darüber reden."
+        ])
 
 @bot.event
 async def on_message(message):
@@ -138,7 +101,7 @@ async def on_message(message):
     if is_funki_channel and not message.content.startswith('!'):
         # Zeige "schreibt..." Indikator
         async with message.channel.typing():
-            # Generiere eine Antwort
+            # Generiere eine Antwort mit KI
             response = await generate_response(message.content)
         
         # Sende die Antwort
