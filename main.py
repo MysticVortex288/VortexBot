@@ -1,24 +1,16 @@
+from threading import Thread
+from flask import Flask
 import os
 import random
 import discord
+from discord.ext import commands
 import sqlite3
 import asyncio
-from typing import Optional, List, Dict
-from discord.ext import commands
 from discord import app_commands
 from discord.ui import View, Button
-from flask import Flask
-import openai  # OpenAI für die KI-Integration
-from threading import Thread
 from transformers import pipeline  # Für KI-Generierung
 
-# Deaktiviere Audio-Features vollständig
-import sys
-import discord.voice_client
-sys.modules['discord.voice_client'] = None
-discord.VoiceClient = None
-
-# Flask App für Render
+# Flask Setup für den Webserver
 app = Flask('')
 
 @app.route('/')
@@ -2468,63 +2460,12 @@ async def on_message(message):
     if is_funki_channel and not message.content.startswith('!'):
         # Zeige "schreibt..." Indikator
         async with message.channel.typing():
-            # Generiere eine natürliche Antwort
-            prompt = message.content.lower()
-            
-            # Begrüßungen
-            if any(word in prompt for word in ["hi", "hallo", "hey", "moin", "servus"]):
-                responses = [
-                    "Hey! Wie geht's dir heute?",
-                    f"Hi {message.author.name}! Was hast du heute so vor?",
-                    "Hallo! Schön dich zu sehen! Was gibt's Neues?",
-                    "Hey! Erzähl mir von deinem Tag!"
-                ]
-                response = random.choice(responses)
-            
-            # Hausaufgaben & Lernen
-            elif any(word in prompt for word in ["hausaufgabe", "schule", "lernen", "mathe", "deutsch"]):
-                if "mathe" in prompt:
-                    response = "Mathe kann manchmal knifflig sein! Welche Aufgabe macht dir Probleme? Ich bin gut in Mathe und erkläre es dir gerne Schritt für Schritt."
-                elif "deutsch" in prompt:
-                    response = "Deutsch ist eine spannende Sprache! Brauchst du Hilfe bei der Grammatik, einem Aufsatz oder der Interpretation eines Textes?"
-                else:
-                    response = "Klar helfe ich dir beim Lernen! In welchem Fach brauchst du Unterstützung? Ich kenne mich in vielen Bereichen aus."
-
-            # Spiele
-            elif "spiel" in prompt:
-                if "wie" in prompt:
-                    response = "Die Spielregeln sind ganz einfach! Bei Blackjack versuchst du näher an 21 zu kommen als der Dealer. Möchtest du es ausprobieren?"
-                else:
-                    response = "Ich liebe Spiele! Blackjack ist mein Favorit - da braucht man Strategie und ein bisschen Glück. Willst du eine Runde spielen?"
-
-            # Persönliche Fragen
-            elif any(word in prompt for word in ["wie geht", "was machst", "wie bist"]):
-                response = "Mir geht es super! Ich lerne gerade viel von den Gesprächen mit euch. Und wie läuft's bei dir?"
-
-            # Hilfe
-            elif "hilfe" in prompt or "help" in prompt:
-                response = f"Ich sehe, du brauchst Hilfe bei '{message.content}'. Das ist kein Problem! Ich kenne mich damit aus. Was genau möchtest du wissen?"
-
-            # Fragen
-            elif "?" in prompt:
-                if "warum" in prompt:
-                    response = f"Das ist eine gute Frage! Lass mich nachdenken... {message.content} - Das könnte daran liegen, dass..."
-                else:
-                    response = f"Interessante Frage! Ich denke, dass {message.content[:-1]} damit zu tun hat, dass..."
-
-            # Standardantwort
-            else:
-                response = f"Das ist ein spannendes Thema! {message.content} - Darüber würde ich gerne mehr erfahren. Was interessiert dich daran besonders?"
-        
-        # Erstelle ein schönes Embed
-        embed = discord.Embed(
-            description=response,  # Kein Titel mehr, macht es natürlicher
-            color=discord.Color.purple()
-        )
+            # Generiere eine KI-Antwort
+            response = await generate_response(message.content)
         
         # Sende die Antwort
-        await message.channel.send(embed=embed)
-        return  # Beende hier, keine weiteren Befehle verarbeiten
+        await message.channel.send(response)
+        return
     
     # Verarbeite normale Befehle
     await bot.process_commands(message)
@@ -2549,8 +2490,8 @@ async def generate_response(prompt: str) -> str:
             answer = generated_text  # Falls die Antwort leer ist, nimm den ganzen Text
             
         return answer
-    except Exception as e:
-        return "Entschuldigung, ich konnte gerade keine Antwort generieren. Versuche es bitte nochmal!"
+    except:
+        return "Fehler bei der Generierung. Versuche es nochmal!"
 
 @bot.command()
 @commands.has_permissions(administrator=True)
@@ -2562,16 +2503,7 @@ async def setupki(ctx, channel: discord.TextChannel):
     ''', (ctx.guild.id, channel.id))
     conn.commit()
     
-    embed = discord.Embed(
-        title="✅ KI-System eingerichtet!",
-        description=f"Der Kanal {channel.mention} wurde als KI-Kanal eingerichtet.\n\n"
-                   "**So funktioniert's:**\n"
-                   "1. Richte zuerst mit `!setupki #kanal` einen Kanal ein\n"
-                   "2. Schreibe dann einfach in diesem Kanal und die KI wird antworten! 😄\n\n"
-                   "**Hinweis:** Befehle funktionieren in diesem Kanal nicht!",
-        color=discord.Color.green()
-    )
-    await ctx.send(embed=embed)
+    await ctx.send(f"KI-System wurde in {channel.mention} eingerichtet!")
 
 if __name__ == "__main__":
     keep_alive()
