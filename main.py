@@ -22,7 +22,7 @@ app = Flask('')
 
 @app.route('/')
 def home():
-    return "Bot is alive!"
+    return "Bot ist online!"
 
 def run():
     app.run(host='0.0.0.0', port=8080)
@@ -2091,12 +2091,11 @@ async def yahtzee(ctx, bet_amount: int = None):
 
 @bot.event
 async def on_command_error(ctx, error):
-    # Ignoriere alle Errors, wenn der Command erfolgreich war
-    if hasattr(ctx.command, 'on_error'):
+    # Verhindere doppelte Error-Nachrichten
+    if getattr(ctx, 'error_handled', False):
         return
-        
-    if hasattr(ctx, 'handled'):
-        return
+    
+    ctx.error_handled = True
 
     # Ignoriere CommandNotFound Errors
     if isinstance(error, commands.CommandNotFound):
@@ -2123,12 +2122,10 @@ async def on_command_error(ctx, error):
         embed.description = "Dieser User wurde nicht gefunden!"
     
     else:
-        return
+        embed.title = "❌ Fehler"
+        embed.description = str(error)
     
-    try:
-        await ctx.send(embed=embed)
-    except:
-        pass
+    await ctx.send(embed=embed)
 
 @bot.command()
 async def balance(ctx, member: discord.Member = None):
@@ -2606,5 +2603,5 @@ async def setupfunki(ctx, channel: discord.TextChannel):
     await ctx.send(embed=embed)
 
 if __name__ == "__main__":
-    keep_alive()  # Startet den Webserver für 24/7 Uptime
+    keep_alive()
     bot.run(os.getenv('DISCORD_TOKEN'))
