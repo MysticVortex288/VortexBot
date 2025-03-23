@@ -8,7 +8,7 @@ import sqlite3
 import asyncio
 from discord import app_commands
 from discord.ui import View, Button
-from transformers import pipeline  # Für KI-Generierung
+import requests
 
 # Flask Setup für den Webserver
 app = Flask('')
@@ -31,45 +31,77 @@ intents.members = True
 bot = commands.Bot(
     command_prefix="!",
     intents=intents,
-    help_command=None  # Deaktiviert den Standard-Help-Command
+    help_command=None
 )
-
-# Initialisiere die KI
-print("Lade KI-Modell...")
-generator = pipeline('text-generation', model='gpt2')
-print("KI-Modell geladen!")
 
 # Datenbank Setup
 conn = sqlite3.connect('casino.db')
 cursor = conn.cursor()
 
-# Erstelle Tabellen
+# Erstelle die Tabelle für KI-Kanäle
 cursor.execute('''
-CREATE TABLE IF NOT EXISTS economy (
-    user_id INTEGER PRIMARY KEY,
-    balance INTEGER DEFAULT 0,
-    last_daily TEXT,
-    last_work TEXT,
-    last_beg TEXT,
-    last_rob TEXT
-)''')
-
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS counting (
-    guild_id INTEGER PRIMARY KEY,
-    channel_id INTEGER,
-    last_number INTEGER DEFAULT 0,
-    last_user_id INTEGER DEFAULT 0
-)''')
-
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS funki_channels (
-    guild_id INTEGER,
-    channel_id INTEGER,
-    PRIMARY KEY (guild_id, channel_id)
-)''')
-
+    CREATE TABLE IF NOT EXISTS funki_channels (
+        guild_id INTEGER,
+        channel_id INTEGER,
+        PRIMARY KEY (guild_id, channel_id)
+    )
+''')
 conn.commit()
+
+async def generate_response(prompt: str) -> str:
+    try:
+        # Nutze die API Ninjas Chat API
+        api_url = 'https://api.api-ninjas.com/v1/chat'
+        headers = {'X-Api-Key': os.getenv('NINJA_API_KEY')}
+        payload = {'message': prompt}
+        
+        # Sende Anfrage
+        response = requests.post(api_url, headers=headers, json=payload)
+        
+        # Prüfe ob die Anfrage erfolgreich war
+        if response.status_code == 200:
+            return response.json()['message']
+        else:
+            return "Entschuldigung, ich konnte gerade keine Antwort generieren."
+            
+    except Exception as e:
+        return "Tut mir leid, ich verstehe dich gerade nicht. Versuche es bitte nochmal!"
+
+@bot.event
+async def on_message(message):
+    # Ignoriere Bot-Nachrichten
+    if message.author.bot:
+        return
+
+    # Überprüfe ob der Kanal ein KI-Kanal ist
+    cursor.execute("SELECT 1 FROM funki_channels WHERE guild_id = ? AND channel_id = ?",
+                 (message.guild.id, message.channel.id))
+    is_funki_channel = cursor.fetchone() is not None
+
+    if is_funki_channel and not message.content.startswith('!'):
+        # Zeige "schreibt..." Indikator
+        async with message.channel.typing():
+            # Generiere eine KI-Antwort
+            response = await generate_response(message.content)
+        
+        # Sende die Antwort
+        await message.channel.send(response)
+        return
+    
+    # Verarbeite normale Befehle
+    await bot.process_commands(message)
+
+@bot.command(name="setupki")
+@commands.has_permissions(administrator=True)
+async def setupki(ctx, channel: discord.TextChannel):
+    # Füge den Kanal zur Datenbank hinzu
+    cursor.execute('''
+        INSERT OR REPLACE INTO funki_channels (guild_id, channel_id)
+        VALUES (?, ?)
+    ''', (ctx.guild.id, channel.id))
+    conn.commit()
+    
+    await ctx.send(f"KI-System wurde in {channel.mention} eingerichtet!")
 
 # Hilfsfunktionen
 def get_coins(user_id: int) -> int:
@@ -87,7 +119,7 @@ def update_coins(user_id: int, amount: int):
     cursor.execute("INSERT OR REPLACE INTO economy (user_id, balance) VALUES (?, ?)", (user_id, new_coins))
     conn.commit()
 
-def get_last_used(user_id: int, command: str) -> Optional[datetime.datetime]:
+def get_last_used(user_id: int, command: str) -> datetime.datetime:
     cursor.execute("SELECT last_used FROM cooldowns WHERE user_id = ? AND command = ?", (user_id, command))
     result = cursor.fetchone()
     if result:
@@ -471,7 +503,7 @@ class BlackjackGame:
         self.player_hand.extend([self.deck.draw(), self.deck.draw()])
         self.dealer_hand.extend([self.deck.draw(), self.deck.draw()])
     
-    def get_hand_value(self, hand: List[Card]) -> int:
+    def get_hand_value(self, hand: list) -> int:
         value = 0
         aces = 0
         
@@ -498,7 +530,7 @@ class BlackjackGame:
             self.game_over = True
         return card
     
-    def dealer_play(self) -> List[Card]:
+    def dealer_play(self) -> list:
         new_cards = []
         while self.get_hand_value(self.dealer_hand) < 17:
             card = self.deck.draw()
@@ -2469,41 +2501,6 @@ async def on_message(message):
     
     # Verarbeite normale Befehle
     await bot.process_commands(message)
-
-async def generate_response(prompt: str) -> str:
-    try:
-        # Generiere eine Antwort mit der KI
-        response = generator(
-            prompt,
-            max_length=100,
-            num_return_sequences=1,
-            temperature=0.7,
-            pad_token_id=50256
-        )
-        
-        # Extrahiere die generierte Antwort
-        generated_text = response[0]['generated_text']
-        
-        # Entferne den ursprünglichen Prompt und säubere die Antwort
-        answer = generated_text[len(prompt):].strip()
-        if not answer:
-            answer = generated_text  # Falls die Antwort leer ist, nimm den ganzen Text
-            
-        return answer
-    except:
-        return "Fehler bei der Generierung. Versuche es nochmal!"
-
-@bot.command()
-@commands.has_permissions(administrator=True)
-async def setupki(ctx, channel: discord.TextChannel):
-    # Füge den Kanal zur Datenbank hinzu
-    cursor.execute('''
-        INSERT OR REPLACE INTO funki_channels (guild_id, channel_id)
-        VALUES (?, ?)
-    ''', (ctx.guild.id, channel.id))
-    conn.commit()
-    
-    await ctx.send(f"KI-System wurde in {channel.mention} eingerichtet!")
 
 if __name__ == "__main__":
     keep_alive()
