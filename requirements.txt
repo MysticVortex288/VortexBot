@@ -1,5 +1,6 @@
 discord.py==2.3.2
 python-dotenv==0.19.0
 Flask==2.0.1
-requests
+Werkzeug==2.0.3
 openai==0.27.0
+requests==2.31.0
