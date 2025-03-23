@@ -272,15 +272,13 @@ async def help_command(ctx, category: str = None):
             embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1037834223187759154.webp?size=96&quality=lossless")
         elif category == "ki":
             embed = discord.Embed(
-                title="🤖 KI-Witze - Hilfe",
-                description="**KI-Befehle:**\n\n"
-                          "• `!setupfunki #kanal` - Richtet einen KI-Witz-Kanal ein\n\n"
-                          "**Verwendung:**\n"
-                          "1. Richte zuerst mit `!setupfunki #kanal` einen Kanal ein\n"
-                          "2. Schreibe dann einfach in diesem Kanal (ohne Prefix!)\n"
-                          "3. Die KI wird dir lustige Witze erzählen! 😄\n\n"
-                          "**Hinweis:** Dieser Befehl ist nur für Administratoren!",
-                color=discord.Color.purple()
+                title="🤖 KI-System Befehle",
+                description="Hier sind alle Befehle für das KI-System:\n\n"
+                           "• `!setupki #kanal` - Richtet einen KI-Kanal ein\n\n"
+                           "**So funktioniert's:**\n"
+                           "1. Richte zuerst mit `!setupki #kanal` einen Kanal ein\n"
+                           "2. Schreibe dann einfach in diesem Kanal und die KI wird antworten!",
+                color=discord.Color.blue()
             )
             embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1037834270235238410.webp?size=96&quality=lossless")
         else:
@@ -291,7 +289,7 @@ async def help_command(ctx, category: str = None):
                           "• `!help casino` - Casino-Spiele\n"
                           "• `!help moderation` - Server-Moderation\n"
                           "• `!help counting` - Counting-System\n"
-                          "• `!help ki` - KI-Witze System",
+                          "• `!help ki` - KI-System",
                 color=discord.Color.red()
             )
             embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1037834270235238410.webp?size=96&quality=lossless")
@@ -2465,18 +2463,18 @@ async def on_message(message):
     is_counting_channel = counting_result and counting_result[0] == message.channel.id
 
     if is_funki_channel and not message.content.startswith('!'):
-        # Generiere einen Witz basierend auf der Nachricht
-        joke = generate_joke(message.content)
+        # Generiere eine Antwort basierend auf der Nachricht
+        response = generate_response(message.content)
         
         # Erstelle ein schönes Embed
         embed = discord.Embed(
-            title="🤖 Hier kommt ein Witz!",
-            description=joke,
+            title="🤖 Hier kommt eine Antwort!",
+            description=response,
             color=discord.Color.purple()
         )
         embed.set_footer(text=f"Inspiriert von: {message.author.display_name}")
         
-        # Sende den Witz
+        # Sende die Antwort
         await message.channel.send(embed=embed)
         return  # Beende hier, keine weiteren Befehle verarbeiten
     elif is_counting_channel:
@@ -2536,54 +2534,28 @@ async def on_message(message):
     if not (is_funki_channel and not message.content.startswith('!')) and not is_counting_channel:
         await bot.process_commands(message)
 
-def generate_joke(prompt: str) -> str:
-    # Liste von Witz-Templates
-    templates = [
-        "Warum {action}? Weil {punchline}! 😄",
-        "Was sagt {subject} zu {object}? {punchline}! 🤣",
-        "Kommt {subject} in {location}. {punchline}! 😆",
-        "Was ist {color} und {action}? {punchline}! 😂",
-        "Treffen sich {subject} und {object}. {punchline}! 🤪",
-        "{subject} fragt: '{question}' Antwort: {punchline}! 😅"
+def generate_response(prompt: str) -> str:
+    responses = [
+        f"Hier ist meine Antwort auf '{prompt}': ",
+        f"Basierend auf deiner Nachricht '{prompt}', denke ich: ",
+        f"Zu '{prompt}' fällt mir ein: ",
+        f"Meine Gedanken zu '{prompt}': ",
+        f"Interessanter Punkt! Zu '{prompt}' sage ich: "
     ]
     
-    # Witzige Wörter und Phrasen
-    subjects = ["ein Programmierer", "eine KI", "ein Bot", "ein Computer", "ein Pixel", "ein Bug"]
-    objects = ["dem Internet", "dem Server", "dem Code", "dem Bug", "dem Computer", "dem Bot"]
-    actions = ["tanzt ein Bit", "debuggt sich selbst", "kompiliert nicht", "lädt ewig", "crasht ständig", "hat einen Bluescreen"]
-    locations = ["den Server", "das Internet", "die Cloud", "das Datencenter", "die Konsole", "den Computer"]
-    colors = ["blau", "rot", "grün", "gelb", "pink", "lila"]
-    questions = ["Wo ist mein RAM?", "Warum läuft nichts?", "Wer hat den Code kaputt gemacht?", "Wo sind meine Daten?"]
-    punchlines = [
-        "es hat keine Bits mehr übrig",
-        "der Cache war voll",
-        "die Cloud war zu niedrig",
-        "das WLAN war im Urlaub",
-        "der Server macht Mittagspause",
-        "die Maus hat den Käse geklaut",
-        "das Internet hatte Schluckauf",
-        "der Router ist im Homeoffice"
-    ]
+    # Hier würde später die echte KI-Integration kommen
+    # Für jetzt generieren wir eine zufällige, aber kontextbezogene Antwort
+    response = random.choice(responses)
+    words = prompt.split()
+    if words:
+        response += f"Das Thema {random.choice(words)} ist sehr interessant! "
+        response += "Lass uns darüber sprechen!"
     
-    # Wähle zufällig ein Template
-    template = random.choice(templates)
-    
-    # Ersetze die Platzhalter
-    joke = template.format(
-        subject=random.choice(subjects),
-        object=random.choice(objects),
-        action=random.choice(actions),
-        location=random.choice(locations),
-        color=random.choice(colors),
-        question=random.choice(questions),
-        punchline=random.choice(punchlines)
-    )
-    
-    return joke
+    return response
 
 @bot.command()
 @commands.has_permissions(administrator=True)
-async def setupfunki(ctx, channel: discord.TextChannel):
+async def setupki(ctx, channel: discord.TextChannel):
     # Füge den Kanal zur Datenbank hinzu
     cursor.execute('''
         INSERT OR REPLACE INTO funki_channels (guild_id, channel_id)
@@ -2592,11 +2564,11 @@ async def setupfunki(ctx, channel: discord.TextChannel):
     conn.commit()
     
     embed = discord.Embed(
-        title="✅ KI-Witze System eingerichtet!",
-        description=f"Der Kanal {channel.mention} wurde als KI-Witze-Kanal eingerichtet.\n\n"
+        title="✅ KI-System eingerichtet!",
+        description=f"Der Kanal {channel.mention} wurde als KI-Kanal eingerichtet.\n\n"
                    "**So funktioniert's:**\n"
                    "1. Schreibe einfach eine Nachricht in den Kanal\n"
-                   "2. Die KI wird dir einen passenden Witz erzählen! 😄\n\n"
+                   "2. Die KI wird dir eine passende Antwort geben! 😄\n\n"
                    "**Hinweis:** Befehle funktionieren in diesem Kanal nicht!",
         color=discord.Color.green()
     )
