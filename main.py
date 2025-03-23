@@ -10,6 +10,7 @@ from discord import app_commands
 from discord.ui import View, Button
 from flask import Flask
 from threading import Thread
+import openai  # OpenAI für die KI-Integration
 
 # Deaktiviere Audio-Features vollständig
 import sys
@@ -1867,7 +1868,7 @@ class YahtzeeView(View):
             if all(x in sorted_dice for x in range(i, i+4)):  
                 return 20, "🎲 Kleine Straße!"
         
-        # Drei gleiche
+        # Drilling
         if 3 in counts.values():  
             return 15, "🎲 Drei gleiche!"
         
@@ -2457,101 +2458,45 @@ async def on_message(message):
                  (message.guild.id, message.channel.id))
     is_funki_channel = cursor.fetchone() is not None
 
-    # Überprüfe ob der Kanal ein Counting-Kanal ist
-    cursor.execute('SELECT channel_id, last_number, last_user_id FROM counting WHERE guild_id = ?', (message.guild.id,))
-    counting_result = cursor.fetchone()
-    is_counting_channel = counting_result and counting_result[0] == message.channel.id
-
     if is_funki_channel and not message.content.startswith('!'):
-        # Generiere eine Antwort basierend auf der Nachricht
-        response = generate_response(message.content)
+        # Zeige "schreibt..." Indikator
+        async with message.channel.typing():
+            # Generiere eine Antwort basierend auf der Nachricht
+            response = await generate_response(message.content)
         
         # Erstelle ein schönes Embed
         embed = discord.Embed(
-            title="🤖 Hier kommt eine Antwort!",
+            title="🤖 Antwort",
             description=response,
             color=discord.Color.purple()
         )
-        embed.set_footer(text=f"Inspiriert von: {message.author.display_name}")
+        embed.set_footer(text=f"Antwort für: {message.author.display_name}")
         
         # Sende die Antwort
         await message.channel.send(embed=embed)
         return  # Beende hier, keine weiteren Befehle verarbeiten
-    elif is_counting_channel:
-        channel_id, last_number, last_user_id = counting_result
-        
-        # Versuche die Nachricht als Zahl zu interpretieren
-        try:
-            number = int(message.content)
-            
-            # Prüfe ob es die richtige Zahl ist
-            if number == last_number + 1:
-                # Prüfe ob der User zweimal hintereinander gezählt hat
-                if message.author.id == last_user_id:
-                    await message.add_reaction("❌")
-                    embed = discord.Embed(
-                        title="❌ Fehler",
-                        description=f"{message.author.mention} du kannst nicht zweimal hintereinander zählen!\n"
-                                  "Wir fangen wieder bei 1 an.",
-                        color=discord.Color.red()
-                    )
-                    await message.channel.send(embed=embed)
-                    cursor.execute('''
-                        UPDATE counting 
-                        SET last_number = 0, last_user_id = 0 
-                        WHERE guild_id = ?
-                    ''', (message.guild.id,))
-                else:
-                    # Alles richtig, update die Datenbank
-                    await message.add_reaction("✅")
-                    cursor.execute('''
-                        UPDATE counting 
-                        SET last_number = ?, last_user_id = ? 
-                        WHERE guild_id = ?
-                    ''', (number, message.author.id, message.guild.id))
-            else:
-                # Falsche Zahl
-                await message.add_reaction("❌")
-                embed = discord.Embed(
-                    title="❌ Fehler",
-                    description=f"Die nächste Zahl wäre {last_number + 1} gewesen!\n"
-                              "Wir fangen wieder bei 1 an.",
-                    color=discord.Color.red()
-                )
-                await message.channel.send(embed=embed)
-                cursor.execute('''
-                    UPDATE counting 
-                    SET last_number = 0, last_user_id = 0 
-                    WHERE guild_id = ?
-                ''', (message.guild.id,))
-        except ValueError:
-            # Keine Zahl
-            pass
-        
-        conn.commit()
-
-    # Verarbeite normale Befehle nur wenn es kein Spezial-Kanal ist
-    if not (is_funki_channel and not message.content.startswith('!')) and not is_counting_channel:
+    elif is_funki_channel:
+        # Verarbeite normale Befehle nur wenn es kein Spezial-Kanal ist
         await bot.process_commands(message)
 
-def generate_response(prompt: str) -> str:
-    responses = [
-        f"Hier ist meine Antwort auf '{prompt}': ",
-        f"Basierend auf deiner Nachricht '{prompt}', denke ich: ",
-        f"Zu '{prompt}' fällt mir ein: ",
-        f"Meine Gedanken zu '{prompt}': ",
-        f"Interessanter Punkt! Zu '{prompt}' sage ich: "
-    ]
-    
-    # Hier würde später die echte KI-Integration kommen
-    # Für jetzt generieren wir eine zufällige, aber kontextbezogene Antwort
-    response = random.choice(responses)
-    words = prompt.split()
-    if words:
-        response += f"Das Thema {random.choice(words)} ist sehr interessant! "
-        response += "Lass uns darüber sprechen!"
-    
-    return response
+async def generate_response(prompt: str) -> str:
+    # OpenAI Setup
+    openai.api_key = os.getenv('OPENAI_API_KEY')
+
+    try:
+        # Sende Anfrage an OpenAI
+        response = await openai.ChatCompletion.acreate(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "Du bist ein hilfreicher Discord Bot-Assistent. Antworte freundlich, präzise und hilfreich auf die Fragen und Anliegen der Nutzer. Halte deine Antworten kurz und relevant."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=150,  # Begrenzt die Antwortlänge
+            temperature=0.7  # Balanciert Kreativität und Fokus
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"Entschuldigung, ich konnte keine passende Antwort generieren. Fehler: {str(e)}"
 
 @bot.command()
 @commands.has_permissions(administrator=True)
