@@ -52,19 +52,19 @@ conn.commit()
 
 async def generate_response(prompt: str) -> str:
     try:
-        # Nutze die API Ninjas Chat API
-        api_url = 'https://api.api-ninjas.com/v1/chat'
-        headers = {'X-Api-Key': os.getenv('NINJA_API_KEY')}
-        payload = {'message': prompt}
+        # Einfache Antwortgenerierung
+        prompt = prompt.lower()
         
-        # Sende Anfrage
-        response = requests.post(api_url, headers=headers, json=payload)
-        
-        # Prüfe ob die Anfrage erfolgreich war
-        if response.status_code == 200:
-            return response.json()['message']
+        # Generiere eine passende Antwort
+        if "?" in prompt:
+            if "wie" in prompt:
+                return f"Lass mich dir bei '{prompt}' helfen! Was möchtest du genau wissen?"
+            else:
+                return f"Gute Frage! Lass uns über '{prompt}' sprechen."
+        elif "hilfe" in prompt or "help" in prompt:
+            return f"Ich helfe dir gerne bei '{prompt}'. Was brauchst du?"
         else:
-            return "Entschuldigung, ich konnte gerade keine Antwort generieren."
+            return f"Verstehe! Erzähl mir mehr über '{prompt}'."
             
     except Exception as e:
         return "Tut mir leid, ich verstehe dich gerade nicht. Versuche es bitte nochmal!"
@@ -83,7 +83,7 @@ async def on_message(message):
     if is_funki_channel and not message.content.startswith('!'):
         # Zeige "schreibt..." Indikator
         async with message.channel.typing():
-            # Generiere eine KI-Antwort
+            # Generiere eine Antwort
             response = await generate_response(message.content)
         
         # Sende die Antwort
@@ -2479,30 +2479,6 @@ async def on_member_remove(member):
         embed.set_thumbnail(url=member.display_avatar.url)
         embed.timestamp = datetime.datetime.now()
         await goodbye_channel.send(embed=embed)
-
-@bot.event
-async def on_message(message):
-    # Ignoriere Bot-Nachrichten
-    if message.author.bot:
-        return
-
-    # Überprüfe ob der Kanal ein KI-Witz-Kanal ist
-    cursor.execute("SELECT 1 FROM funki_channels WHERE guild_id = ? AND channel_id = ?",
-                 (message.guild.id, message.channel.id))
-    is_funki_channel = cursor.fetchone() is not None
-
-    if is_funki_channel and not message.content.startswith('!'):
-        # Zeige "schreibt..." Indikator
-        async with message.channel.typing():
-            # Generiere eine KI-Antwort
-            response = await generate_response(message.content)
-        
-        # Sende die Antwort
-        await message.channel.send(response)
-        return
-    
-    # Verarbeite normale Befehle
-    await bot.process_commands(message)
 
 if __name__ == "__main__":
     keep_alive()
