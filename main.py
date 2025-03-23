@@ -52,22 +52,77 @@ conn.commit()
 
 async def generate_response(prompt: str) -> str:
     try:
-        # Einfache Antwortgenerierung
+        # Analysiere den Prompt
         prompt = prompt.lower()
+        words = prompt.split()
         
-        # Generiere eine passende Antwort
-        if "?" in prompt:
+        # Erkenne das Hauptthema
+        topics = {
+            "schule": ["schule", "hausaufgaben", "lernen", "unterricht", "lehrer"],
+            "mathe": ["mathe", "mathematik", "rechnen", "algebra", "geometrie"],
+            "deutsch": ["deutsch", "sprache", "grammatik", "aufsatz", "text"],
+            "spiele": ["spiel", "spielen", "game", "gaming", "zocken"],
+            "computer": ["computer", "pc", "laptop", "windows", "programm"],
+            "sport": ["sport", "fußball", "training", "fitness", "spielen"],
+            "musik": ["musik", "song", "singen", "instrument", "konzert"],
+            "essen": ["essen", "kochen", "rezept", "hunger", "food"]
+        }
+        
+        # Finde das Hauptthema
+        main_topic = None
+        for topic, keywords in topics.items():
+            if any(word in prompt for word in keywords):
+                main_topic = topic
+                break
+        
+        # Generiere eine themenbasierte Antwort
+        if "?" in prompt:  # Frage
             if "wie" in prompt:
-                return f"Lass mich dir bei '{prompt}' helfen! Was möchtest du genau wissen?"
-            else:
-                return f"Gute Frage! Lass uns über '{prompt}' sprechen."
+                if main_topic == "schule":
+                    return "Bei Schulaufgaben ist es wichtig, Schritt für Schritt vorzugehen. Lass uns zusammen einen Lernplan erstellen. Was genau verstehst du nicht?"
+                elif main_topic == "mathe":
+                    return "In Mathe ist es wichtig, die Grundlagen zu verstehen. Welche Art von Aufgabe macht dir Schwierigkeiten? Ich kann dir die Lösungsschritte erklären."
+                elif main_topic == "spiele":
+                    return "Spiele lernt man am besten durch Übung. Ich kann dir Tipps und Strategien zeigen. In welchem Spiel brauchst du Hilfe?"
+                else:
+                    return "Das ist eine interessante Frage! Lass uns das systematisch angehen. Was genau möchtest du wissen?"
+            
+            elif "warum" in prompt:
+                if main_topic:
+                    return f"Das ist eine gute Frage zum Thema {main_topic}! Es gibt dafür mehrere Gründe. Der wichtigste ist..."
+                else:
+                    return "Gute Frage! Lass mich kurz nachdenken... Es könnte daran liegen, dass..."
+            
+            elif "wann" in prompt or "wo" in prompt:
+                return "Das hängt von verschiedenen Faktoren ab. Lass uns die wichtigsten durchgehen..."
+        
         elif "hilfe" in prompt or "help" in prompt:
-            return f"Ich helfe dir gerne bei '{prompt}'. Was brauchst du?"
+            if main_topic == "schule":
+                return "Klar helfe ich dir bei den Schulaufgaben! In welchem Fach brauchst du Unterstützung? Ich kann dir beim Lernen, bei Hausaufgaben oder bei der Vorbereitung auf Tests helfen."
+            elif main_topic == "computer":
+                return "Bei Computerproblemen ist es wichtig, systematisch vorzugehen. Beschreibe mir genau, was nicht funktioniert, dann finden wir eine Lösung."
+            else:
+                return "Ich helfe dir gerne! Lass uns das Problem Schritt für Schritt angehen. Was bereitet dir Schwierigkeiten?"
+        
+        elif any(word in prompt for word in ["danke", "thanks", "thx"]):
+            return "Gerne! Wenn du noch weitere Fragen hast, bin ich für dich da!"
+        
         else:
-            return f"Verstehe! Erzähl mir mehr über '{prompt}'."
+            if main_topic == "schule":
+                return "Schule kann manchmal herausfordernd sein. In welchem Fach möchtest du dich verbessern? Ich kann dir Lerntipps geben!"
+            elif main_topic == "mathe":
+                return "Mathe macht mehr Spaß, wenn man die Konzepte versteht. Sollen wir zusammen üben?"
+            elif main_topic == "spiele":
+                return "Gaming ist eine tolle Freizeitbeschäftigung! Welches Spiel ist dein Favorit? Vielleicht kann ich dir ein paar Tricks zeigen."
+            elif main_topic == "musik":
+                return "Musik verbindet Menschen! Spielst du ein Instrument oder hörst du lieber zu? Lass uns über deine Lieblingsmusik sprechen."
+            elif main_topic == "sport":
+                return "Sport ist wichtig für Körper und Geist! Welche Sportart machst du am liebsten? Ich kenne viele Übungen und Trainingstipps."
+            else:
+                return "Das klingt spannend! Was interessiert dich besonders daran? Ich würde gerne mehr darüber erfahren und dir meine Gedanken dazu mitteilen."
             
     except Exception as e:
-        return "Tut mir leid, ich verstehe dich gerade nicht. Versuche es bitte nochmal!"
+        return "Entschuldigung, ich hatte gerade einen Aussetzer. Kannst du das bitte nochmal anders formulieren?"
 
 @bot.event
 async def on_message(message):
