@@ -55,8 +55,8 @@ async def generate_response(prompt: str) -> str:
     try:
         api_url = "https://api.textgen.dev/api/v1/generate"
         data = {
-            "prompt": f"{prompt}\nAntwort:",
-            "max_length": 150,
+            "prompt": prompt,
+            "max_length": 100,
             "temperature": 0.7,
             "top_p": 0.9
         }
@@ -65,7 +65,7 @@ async def generate_response(prompt: str) -> str:
             async with session.post(api_url, json=data, timeout=10) as response:
                 if response.status == 200:
                     result = await response.json()
-                    if 'text' in result:
+                    if result and 'text' in result:
                         return result['text'].strip()
                 return None
                 
@@ -90,8 +90,8 @@ async def on_message(message):
                 response = await generate_response(message.content)
                 if response:
                     await message.channel.send(response)
-            return
-
+                    return
+        
         # Verarbeite normale Befehle
         await bot.process_commands(message)
         
