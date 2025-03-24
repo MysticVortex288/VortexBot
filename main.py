@@ -55,20 +55,18 @@ async def generate_response(prompt: str) -> str:
     try:
         api_url = "https://api.textgen.dev/api/v1/generate"
         data = {
-            "prompt": f"Konversation mit einem freundlichen Discord Bot:\nUser: {prompt}\nBot:",
+            "prompt": f"{prompt}\nAntwort:",
             "max_length": 150,
             "temperature": 0.7,
-            "top_p": 0.9,
-            "stop": ["\n", "User:"]
+            "top_p": 0.9
         }
         
         async with aiohttp.ClientSession() as session:
             async with session.post(api_url, json=data, timeout=10) as response:
                 if response.status == 200:
                     result = await response.json()
-                    answer = result['text'].replace(data['prompt'], '').strip()
-                    if answer and len(answer) > 3:
-                        return answer
+                    if 'text' in result:
+                        return result['text'].strip()
                 return None
                 
     except Exception as e:
@@ -81,24 +79,25 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    # Überprüfe ob der Kanal ein KI-Kanal ist
-    cursor.execute("SELECT 1 FROM funki_channels WHERE guild_id = ? AND channel_id = ?",
-                 (message.guild.id, message.channel.id))
-    is_funki_channel = cursor.fetchone() is not None
+    try:
+        # Überprüfe ob der Kanal ein KI-Kanal ist
+        cursor.execute("SELECT 1 FROM funki_channels WHERE guild_id = ? AND channel_id = ?",
+                     (message.guild.id, message.channel.id))
+        is_funki_channel = cursor.fetchone() is not None
 
-    if is_funki_channel and not message.content.startswith('!'):
-        # Zeige "schreibt..." Indikator
-        async with message.channel.typing():
-            # Generiere eine Antwort mit KI
-            response = await generate_response(message.content)
-            
-            # Sende die Antwort nur wenn sie nicht None ist
-            if response:
-                await message.channel.send(response)
+        if is_funki_channel and not message.content.startswith('!'):
+            async with message.channel.typing():
+                response = await generate_response(message.content)
+                if response:
+                    await message.channel.send(response)
+            return
+
+        # Verarbeite normale Befehle
+        await bot.process_commands(message)
+        
+    except Exception as e:
+        print(f"Fehler in on_message: {str(e)}")
         return
-    
-    # Verarbeite normale Befehle
-    await bot.process_commands(message)
 
 # Hilfsfunktionen
 def get_coins(user_id: int) -> int:
@@ -2491,4 +2490,3 @@ async def on_member_remove(member):
 if __name__ == "__main__":
     keep_alive()
     bot.run(os.getenv('DISCORD_TOKEN'))
-    
