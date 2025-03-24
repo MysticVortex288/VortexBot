@@ -53,31 +53,24 @@ conn.commit()
 
 async def generate_response(prompt: str) -> str:
     try:
-        # Free Text Generation API
         api_url = "https://api.textgen.dev/api/v1/generate"
-        
-        # Erstelle die Anfrage
         data = {
-            "prompt": f"Du bist ein freundlicher Discord Bot. Antworte kurz und natürlich auf: {prompt}",
-            "max_length": 50,
-            "temperature": 0.7,
-            "top_p": 0.9,
-            "stop": ["\n", "User:", "Bot:"]
+            "prompt": prompt,
+            "max_length": 100,
+            "temperature": 0.9,
+            "top_p": 0.9
         }
         
-        # Sende Anfrage
         async with aiohttp.ClientSession() as session:
-            async with session.post(api_url, json=data, timeout=5) as response:
+            async with session.post(api_url, json=data, timeout=10) as response:
                 if response.status == 200:
-                    json_response = await response.json()
-                    # Entferne den Prompt aus der Antwort
-                    answer = json_response['text'].replace(data['prompt'], '').strip()
-                    return answer if answer else "Entschuldigung, ich verstehe nicht ganz. Kannst du das anders formulieren?"
-                else:
-                    return "Tut mir leid, ich habe gerade Probleme mit dem Denken. Kannst du das später nochmal versuchen?"
-            
+                    result = await response.json()
+                    return result['text'].strip()
+                return ""
+                
     except Exception as e:
-        return "Entschuldigung, ich hatte einen Aussetzer. Versuche es bitte nochmal!"
+        print(f"API Fehler: {str(e)}")
+        return ""
 
 @bot.event
 async def on_message(message):
