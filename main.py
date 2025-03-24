@@ -88,9 +88,10 @@ async def on_message(message):
         async with message.channel.typing():
             # Generiere eine Antwort mit KI
             response = await generate_response(message.content)
-        
-        # Sende die Antwort
-        await message.channel.send(response)
+            
+            # Sende die Antwort nur wenn sie nicht leer ist
+            if response and len(response.strip()) > 0:
+                await message.channel.send(response)
         return
     
     # Verarbeite normale Befehle
