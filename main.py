@@ -55,22 +55,25 @@ async def generate_response(prompt: str) -> str:
     try:
         api_url = "https://api.textgen.dev/api/v1/generate"
         data = {
-            "prompt": prompt,
-            "max_length": 100,
-            "temperature": 0.9,
-            "top_p": 0.9
+            "prompt": f"Konversation mit einem freundlichen Discord Bot:\nUser: {prompt}\nBot:",
+            "max_length": 150,
+            "temperature": 0.7,
+            "top_p": 0.9,
+            "stop": ["\n", "User:"]
         }
         
         async with aiohttp.ClientSession() as session:
             async with session.post(api_url, json=data, timeout=10) as response:
                 if response.status == 200:
                     result = await response.json()
-                    return result['text'].strip()
-                return ""
+                    answer = result['text'].replace(data['prompt'], '').strip()
+                    if answer and len(answer) > 3:
+                        return answer
+                return None
                 
     except Exception as e:
         print(f"API Fehler: {str(e)}")
-        return ""
+        return None
 
 @bot.event
 async def on_message(message):
@@ -89,8 +92,8 @@ async def on_message(message):
             # Generiere eine Antwort mit KI
             response = await generate_response(message.content)
             
-            # Sende die Antwort nur wenn sie nicht leer ist
-            if response and len(response.strip()) > 0:
+            # Sende die Antwort nur wenn sie nicht None ist
+            if response:
                 await message.channel.send(response)
         return
     
@@ -2488,3 +2491,4 @@ async def on_member_remove(member):
 if __name__ == "__main__":
     keep_alive()
     bot.run(os.getenv('DISCORD_TOKEN'))
+    
