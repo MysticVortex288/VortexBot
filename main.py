@@ -2449,6 +2449,18 @@ class VerificationView(View):
 
     @discord.ui.button(label="Verifizieren", style=discord.ButtonStyle.green, emoji="✅")
     async def verify_button(self, interaction: discord.Interaction, button: Button):
+        # Prüfe, ob die Interaktion in einem Server-Kontext stattfindet
+        if not interaction.guild:
+            await interaction.response.send_message(
+                embed=discord.Embed(
+                    title="❌ Fehler",
+                    description="Die Verifizierung kann nur auf einem Server durchgeführt werden.",
+                    color=discord.Color.red()
+                ),
+                ephemeral=True
+            )
+            return
+
         # Markiere den Benutzer als verifiziert
         cursor.execute('''
             INSERT OR REPLACE INTO verification (user_id, verified)
@@ -2457,9 +2469,8 @@ class VerificationView(View):
         conn.commit()
 
         # Rolle hinzufügen
-        guild = interaction.guild
-        member = guild.get_member(self.user_id)
-        verified_role = discord.utils.get(guild.roles, name="Verifiziert")
+        member = interaction.guild.get_member(self.user_id)
+        verified_role = discord.utils.get(interaction.guild.roles, name="Verifiziert")
         if verified_role and member:
             await member.add_roles(verified_role)
 
