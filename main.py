@@ -108,14 +108,17 @@ async def on_message(message):
     cursor.execute('SELECT verified FROM verification WHERE user_id = ?', (message.author.id,))
     result = cursor.fetchone()
     if result and not result[0]:  # Nicht verifiziert
-        await message.delete()
-        await message.author.send(
-            embed=discord.Embed(
-                title="⚠️ Verifizierung erforderlich",
-                description="Bitte verifiziere dich, um Nachrichten senden zu können.",
-                color=discord.Color.red()
+        try:
+            await message.delete()
+            await message.author.send(
+                embed=discord.Embed(
+                    title="⚠️ Verifizierung erforderlich",
+                    description="Bitte verifiziere dich, um Nachrichten senden zu können.",
+                    color=discord.Color.red()
+                )
             )
-        )
+        except discord.Forbidden:
+            print(f"⚠️ Konnte keine DM an {message.author} senden.")
         return
 
     try:
@@ -2470,6 +2473,9 @@ class VerificationView(View):
             ephemeral=True
         )
 
+        # Log in the console
+        print(f"✅ {member} wurde erfolgreich verifiziert.")
+
 @bot.event
 async def on_member_join(member):
     # Prüfe/Erstelle Verifiziert-Rolle
@@ -2541,6 +2547,24 @@ async def kick(ctx, member: discord.Member, *, reason: str = "Kein Grund angegeb
             color=discord.Color.green()
         )
         await ctx.send(embed=embed)
+
+        # Sende DM an den Ausführenden
+        await ctx.author.send(
+            embed=discord.Embed(
+                title="✅ Kick ausgeführt",
+                description=f"Du hast {member.mention} gekickt.\n**Grund:** {reason}",
+                color=discord.Color.green()
+            )
+        )
+
+        # Sende DM an den Gekickten
+        await member.send(
+            embed=discord.Embed(
+                title="❌ Du wurdest gekickt",
+                description=f"Du wurdest vom Server **{ctx.guild.name}** gekickt.\n**Grund:** {reason}",
+                color=discord.Color.red()
+            )
+        )
     except discord.Forbidden:
         embed = discord.Embed(
             title="❌ Fehler",
@@ -2561,6 +2585,24 @@ async def ban(ctx, member: discord.Member, *, reason: str = "Kein Grund angegebe
             color=discord.Color.green()
         )
         await ctx.send(embed=embed)
+
+        # Sende DM an den Ausführenden
+        await ctx.author.send(
+            embed=discord.Embed(
+                title="✅ Ban ausgeführt",
+                description=f"Du hast {member.mention} gebannt.\n**Grund:** {reason}",
+                color=discord.Color.green()
+            )
+        )
+
+        # Sende DM an den Gebannten
+        await member.send(
+            embed=discord.Embed(
+                title="❌ Du wurdest gebannt",
+                description=f"Du wurdest vom Server **{ctx.guild.name}** gebannt.\n**Grund:** {reason}",
+                color=discord.Color.red()
+            )
+        )
     except discord.Forbidden:
         embed = discord.Embed(
             title="❌ Fehler",
@@ -2582,6 +2624,24 @@ async def timeout(ctx, member: discord.Member, minutes: int, *, reason: str = "K
             color=discord.Color.green()
         )
         await ctx.send(embed=embed)
+
+        # Sende DM an den Ausführenden
+        await ctx.author.send(
+            embed=discord.Embed(
+                title="✅ Timeout ausgeführt",
+                description=f"Du hast {member.mention} für **{minutes} Minuten** in Timeout gesetzt.\n**Grund:** {reason}",
+                color=discord.Color.green()
+            )
+        )
+
+        # Sende DM an den Betroffenen
+        await member.send(
+            embed=discord.Embed(
+                title="❌ Timeout erhalten",
+                description=f"Du wurdest für **{minutes} Minuten** auf dem Server **{ctx.guild.name}** in Timeout gesetzt.\n**Grund:** {reason}",
+                color=discord.Color.red()
+            )
+        )
     except discord.Forbidden:
         embed = discord.Embed(
             title="❌ Fehler",
@@ -2602,6 +2662,24 @@ async def untimeout(ctx, member: discord.Member, *, reason: str = "Kein Grund an
             color=discord.Color.green()
         )
         await ctx.send(embed=embed)
+
+        # Sende DM an den Ausführenden
+        await ctx.author.send(
+            embed=discord.Embed(
+                title="✅ Timeout aufgehoben",
+                description=f"Du hast den Timeout von {member.mention} aufgehoben.\n**Grund:** {reason}",
+                color=discord.Color.green()
+            )
+        )
+
+        # Sende DM an den Betroffenen
+        await member.send(
+            embed=discord.Embed(
+                title="✅ Timeout aufgehoben",
+                description=f"Dein Timeout auf dem Server **{ctx.guild.name}** wurde aufgehoben.\n**Grund:** {reason}",
+                color=discord.Color.green()
+            )
+        )
     except discord.Forbidden:
         embed = discord.Embed(
             title="❌ Fehler",
