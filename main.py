@@ -115,15 +115,12 @@ async def on_message(message):
         )
         return
 
-    # Verarbeite Befehle und Nachrichten
-    await bot.process_commands(message)
-
     try:
         # Versuche KI-Nachricht zu verarbeiten
         if await handle_ai_message(message):
             return
         
-        # Wenn keine KI-Nachricht, verarbeite normale Befehle
+        # Verarbeite normale Befehle
         await bot.process_commands(message)
     except Exception as e:
         print(f"Fehler in on_message: {str(e)}")
@@ -2109,6 +2106,9 @@ async def yahtzee(ctx, bet_amount: int = None):
                       "🎲 Große Straße: 15x\n"
                       "🎲 Kleine Straße: 10x\n"
                       "🎲 Drei gleiche: 5x\n"
+                      "🎲 Zwei Paare: 3x\n"
+                      "🎲 Ein Paar: 1.5x\n\n"
+                      "**Verwendung:**\n"
                       "🎲 Zwei Paare: 3x\n"
                       "🎲 Ein Paar: 1.5x\n\n"
                       "**Verwendung:**\n"
