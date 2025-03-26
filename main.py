@@ -51,6 +51,15 @@ cursor.execute('''
 ''')
 conn.commit()
 
+# Erstelle die Tabelle für Verifizierung
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS verification (
+        user_id INTEGER PRIMARY KEY,
+        verified BOOLEAN DEFAULT 0
+    )
+''')
+conn.commit()
+
 async def generate_response(prompt: str) -> str:
     try:
         api_url = "https://api.textgen.dev/api/v1/generate"
@@ -73,31 +82,51 @@ async def generate_response(prompt: str) -> str:
         print(f"API Fehler: {str(e)}")
         return None
 
+async def handle_ai_message(message: discord.Message) -> bool:
+    """Verarbeitet KI-Nachrichten und gibt True zurück wenn es eine KI-Nachricht war"""
+    # Überprüfe ob der Kanal ein KI-Kanal ist
+    cursor.execute("SELECT 1 FROM funki_channels WHERE guild_id = ? AND channel_id = ?",
+                 (message.guild.id, message.channel.id))
+    
+    if cursor.fetchone() and not message.content.startswith('!'):
+        async with message.channel.typing():
+            response = await generate_response(message.content)
+            if response:
+                await message.channel.send(response)
+        return True
+    return False
+
 @bot.event
 async def on_message(message):
-    # Ignoriere Bot-Nachrichten
     if message.author.bot:
         return
 
-    try:
-        # Überprüfe ob der Kanal ein KI-Kanal ist
-        cursor.execute("SELECT 1 FROM funki_channels WHERE guild_id = ? AND channel_id = ?",
-                     (message.guild.id, message.channel.id))
-        is_funki_channel = cursor.fetchone() is not None
+    # Überprüfe, ob der Benutzer verifiziert ist
+    cursor.execute('SELECT verified FROM verification WHERE user_id = ?', (message.author.id,))
+    result = cursor.fetchone()
+    if result and not result[0]:  # Nicht verifiziert
+        await message.delete()
+        await message.author.send(
+            embed=discord.Embed(
+                title="⚠️ Verifizierung erforderlich",
+                description="Bitte verifiziere dich, um Nachrichten senden zu können.",
+                color=discord.Color.red()
+            )
+        )
+        return
 
-        if is_funki_channel and not message.content.startswith('!'):
-            async with message.channel.typing():
-                response = await generate_response(message.content)
-                if response:
-                    await message.channel.send(response)
-                    return
+    # Verarbeite Befehle und Nachrichten
+    await bot.process_commands(message)
+
+    try:
+        # Versuche KI-Nachricht zu verarbeiten
+        if await handle_ai_message(message):
+            return
         
-        # Verarbeite normale Befehle
+        # Wenn keine KI-Nachricht, verarbeite normale Befehle
         await bot.process_commands(message)
-        
     except Exception as e:
         print(f"Fehler in on_message: {str(e)}")
-        return
 
 # Hilfsfunktionen
 def get_coins(user_id: int) -> int:
@@ -2410,37 +2439,71 @@ async def stopcounting(ctx):
     )
     await ctx.send(embed=embed)
 
+class VerificationView(View):
+    def __init__(self, user_id: int):
+        super().__init__(timeout=None)
+        self.user_id = user_id
+
+    @discord.ui.button(label="Verifizieren", style=discord.ButtonStyle.green, emoji="✅")
+    async def verify_button(self, interaction: discord.Interaction, button: Button):
+        # Markiere den Benutzer als verifiziert
+        cursor.execute('''
+            INSERT OR REPLACE INTO verification (user_id, verified)
+            VALUES (?, 1)
+        ''', (self.user_id,))
+        conn.commit()
+
+        # Rolle hinzufügen
+        guild = interaction.guild
+        member = guild.get_member(self.user_id)
+        verified_role = discord.utils.get(guild.roles, name="Verifiziert")
+        if verified_role and member:
+            await member.add_roles(verified_role)
+
+        # Bestätigung senden
+        await interaction.response.send_message(
+            embed=discord.Embed(
+                title="✅ Verifizierung erfolgreich!",
+                description="Du bist jetzt verifiziert und kannst den Server nutzen.",
+                color=discord.Color.green()
+            ),
+            ephemeral=True
+        )
+
 @bot.event
 async def on_member_join(member):
-    # Prüfe/Erstelle Member-Rolle
-    member_role = discord.utils.get(member.guild.roles, name="Member")
-    if not member_role:
-        # Erstelle die Rolle wenn sie nicht existiert
-        member_role = await member.guild.create_role(
-            name="Member",
-            color=discord.Color.blue(),
+    # Prüfe/Erstelle Verifiziert-Rolle
+    verified_role = discord.utils.get(member.guild.roles, name="Verifiziert")
+    if not verified_role:
+        verified_role = await member.guild.create_role(
+            name="Verifiziert",
+            color=discord.Color.green(),
             mentionable=True,
-            reason="Automatisch erstellte Rolle für neue Mitglieder"
+            reason="Rolle für verifizierte Mitglieder"
         )
-    
-    # Gebe dem neuen Mitglied die Rolle
-    await member.add_roles(member_role)
-    
-    # Sende Willkommensnachricht
-    welcome_channel = discord.utils.get(member.guild.channels, name="willkommen")
-    if welcome_channel:
+
+    # Füge den Benutzer zur Datenbank hinzu
+    cursor.execute('''
+        INSERT OR IGNORE INTO verification (user_id, verified)
+        VALUES (?, 0)
+    ''', (member.id,))
+    conn.commit()
+
+    # Sende Verifizierungsnachricht
+    try:
         embed = discord.Embed(
-            title="👋 Neues Mitglied",
-            description=f"{member.mention} ist dem Server beigetreten!\n"
-                      f"Du bist unser {len(member.guild.members)}. Mitglied!\n\n"
-                      "• Dir wurde automatisch die Member-Rolle gegeben\n"
-                      "• Nutze `!help` um alle Befehle zu sehen\n"
-                      "• Viel Spaß auf unserem Server! 🎉",
-            color=discord.Color.green()
+            title="👋 Willkommen auf unserem Server!",
+            description=(
+                "Bitte verifiziere dich, um den Server nutzen zu können.\n"
+                "Klicke auf den Button unten, um dich zu verifizieren."
+            ),
+            color=discord.Color.blue()
         )
-        embed.set_thumbnail(url=member.display_avatar.url)
-        embed.timestamp = datetime.datetime.now()
-        await welcome_channel.send(embed=embed)
+        embed.set_footer(text="Vielen Dank, dass du unserem Server beigetreten bist!")
+        view = VerificationView(member.id)
+        await member.send(embed=embed, view=view)
+    except discord.Forbidden:
+        print(f"Konnte keine DM an {member} senden.")
 
 @bot.command()
 @commands.has_permissions(administrator=True)
@@ -2456,35 +2519,14 @@ async def setupki(ctx, channel: discord.TextChannel):
 
 @bot.event
 async def on_member_remove(member):
-    # Berechne wie lange der User auf dem Server war
-    joined_at = member.joined_at
-    now = datetime.datetime.now(datetime.timezone.utc)
-    time_on_server = now - joined_at
-    
-    # Formatiere die Zeit schön
-    days = time_on_server.days
-    hours, remainder = divmod(time_on_server.seconds, 3600)
-    minutes, _ = divmod(remainder, 60)
-    time_str = ""
-    if days > 0:
-        time_str += f"{days} {'Tag' if days == 1 else 'Tage'} "
-    if hours > 0:
-        time_str += f"{hours} {'Stunde' if hours == 1 else 'Stunden'} "
-    if minutes > 0:
-        time_str += f"{minutes} {'Minute' if minutes == 1 else 'Minuten'}"
-    
     # Sende Goodbye-Nachricht
     goodbye_channel = discord.utils.get(member.guild.channels, name="aufwiedersehen")
     if goodbye_channel:
         embed = discord.Embed(
             title="👋 Auf Wiedersehen!",
-            description=f"**{member}** hat den Server verlassen.\n\n"
-                      f"War {time_str} auf dem Server\n"
-                      f"Beigetreten: {joined_at.strftime('%d.%m.%Y um %H:%M')} Uhr",
+            description=f"{member.mention} hat den Server verlassen.",
             color=discord.Color.red()
         )
-        embed.set_thumbnail(url=member.display_avatar.url)
-        embed.timestamp = datetime.datetime.now()
         await goodbye_channel.send(embed=embed)
 
 if __name__ == "__main__":
