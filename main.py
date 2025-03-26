@@ -101,6 +101,9 @@ async def on_message(message):
     if message.author.bot:
         return
 
+    # Debugging: Log incoming messages
+    print(f"📩 Nachricht von {message.author}: {message.content}")
+
     # Überprüfe, ob der Benutzer verifiziert ist
     cursor.execute('SELECT verified FROM verification WHERE user_id = ?', (message.author.id,))
     result = cursor.fetchone()
@@ -123,7 +126,7 @@ async def on_message(message):
         # Verarbeite normale Befehle
         await bot.process_commands(message)
     except Exception as e:
-        print(f"Fehler in on_message: {str(e)}")
+        print(f"❌ Fehler in on_message: {str(e)}")
 
 # Hilfsfunktionen
 def get_coins(user_id: int) -> int:
@@ -138,7 +141,7 @@ def get_coins(user_id: int) -> int:
 def update_coins(user_id: int, amount: int):
     current_coins = get_coins(user_id)
     new_coins = max(0, current_coins + amount)  # Verhindere negative Coins
-    cursor.execute("INSERT OR REPLACE INTO economy (user_id, balance) VALUES (?, ?)", (user_id, new_coins))
+    cursor.execute("INSERT OR REPLACE INTO economy (user_id, balance) VALUES (?, ?, ?)", (user_id, new_coins))
     conn.commit()
 
 def get_last_used(user_id: int, command: str) -> Optional[datetime.datetime]:
@@ -258,6 +261,8 @@ Beispiel: `!coinflip 100 kopf`"""
 @bot.event
 async def on_ready():
     print(f'🤖 Bot ist online als {bot.user.name}')
+    print(f'✅ Eingeloggter Bot-Token: {bot.user.id}')
+    print(f'✅ Eingestelltes Präfix: {bot.command_prefix}')
     await bot.change_presence(activity=discord.Game(name="!help | Dein Allrounder"))
 
 @bot.command(name="help", aliases=["commands", "befehle", "hilfe"])
@@ -879,11 +884,6 @@ async def wheel(ctx, bet: int = None):
         return
 
     if bet < 50:
-        embed = discord.Embed(
-            title="❌ Fehler",
-            description="Der Minimaleinsatz ist 50 Coins!",
-            color=discord.Color.red()
-        )
         await ctx.send(embed=embed)
         return
 
@@ -2528,6 +2528,87 @@ async def on_member_remove(member):
             color=discord.Color.red()
         )
         await goodbye_channel.send(embed=embed)
+
+@bot.command()
+@commands.has_permissions(kick_members=True)
+async def kick(ctx, member: discord.Member, *, reason: str = "Kein Grund angegeben"):
+    """Kicke einen Benutzer vom Server."""
+    try:
+        await member.kick(reason=reason)
+        embed = discord.Embed(
+            title="✅ Benutzer gekickt",
+            description=f"{member.mention} wurde erfolgreich gekickt.\n**Grund:** {reason}",
+            color=discord.Color.green()
+        )
+        await ctx.send(embed=embed)
+    except discord.Forbidden:
+        embed = discord.Embed(
+            title="❌ Fehler",
+            description="Ich habe nicht die Berechtigung, diesen Benutzer zu kicken.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
+
+@bot.command()
+@commands.has_permissions(ban_members=True)
+async def ban(ctx, member: discord.Member, *, reason: str = "Kein Grund angegeben"):
+    """Bannt einen Benutzer vom Server."""
+    try:
+        await member.ban(reason=reason)
+        embed = discord.Embed(
+            title="✅ Benutzer gebannt",
+            description=f"{member.mention} wurde erfolgreich gebannt.\n**Grund:** {reason}",
+            color=discord.Color.green()
+        )
+        await ctx.send(embed=embed)
+    except discord.Forbidden:
+        embed = discord.Embed(
+            title="❌ Fehler",
+            description="Ich habe nicht die Berechtigung, diesen Benutzer zu bannen.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
+
+@bot.command()
+@commands.has_permissions(moderate_members=True)
+async def timeout(ctx, member: discord.Member, minutes: int, *, reason: str = "Kein Grund angegeben"):
+    """Setzt einen Benutzer in Timeout."""
+    try:
+        duration = datetime.timedelta(minutes=minutes)
+        await member.timeout_for(duration, reason=reason)
+        embed = discord.Embed(
+            title="✅ Timeout gesetzt",
+            description=f"{member.mention} wurde für **{minutes} Minuten** in Timeout gesetzt.\n**Grund:** {reason}",
+            color=discord.Color.green()
+        )
+        await ctx.send(embed=embed)
+    except discord.Forbidden:
+        embed = discord.Embed(
+            title="❌ Fehler",
+            description="Ich habe nicht die Berechtigung, diesen Benutzer in Timeout zu setzen.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
+
+@bot.command()
+@commands.has_permissions(moderate_members=True)
+async def untimeout(ctx, member: discord.Member, *, reason: str = "Kein Grund angegeben"):
+    """Hebt den Timeout eines Benutzers auf."""
+    try:
+        await member.timeout(None, reason=reason)
+        embed = discord.Embed(
+            title="✅ Timeout aufgehoben",
+            description=f"Der Timeout von {member.mention} wurde aufgehoben.\n**Grund:** {reason}",
+            color=discord.Color.green()
+        )
+        await ctx.send(embed=embed)
+    except discord.Forbidden:
+        embed = discord.Embed(
+            title="❌ Fehler",
+            description="Ich habe nicht die Berechtigung, den Timeout dieses Benutzers aufzuheben.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
 
 if __name__ == "__main__":
     keep_alive()
