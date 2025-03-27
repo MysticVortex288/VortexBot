@@ -57,7 +57,7 @@ async def hilfe(ctx):
 #timeout rolle erstellen
 @bot.command()
 @commands.has_permissions(manage_messages=True)
-async def setup(ctx):
+async def setuptimeout(ctx):
     timeout_role = await ctx.guild.create_role(name="Timeout")
     await ctx.send(f"Die Rolle {timeout_role.mention} wurde erstellt.") 
 
