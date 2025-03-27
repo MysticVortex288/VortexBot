@@ -2,6 +2,11 @@ import discord
 from discord.ext import commands
 import asyncio
 from typing import Optional
+import os
+from dotenv import load_dotenv
+
+load_dotenv()  # Lädt Umgebungsvariablen aus der .env-Datei
+TOKEN = os.getenv("DISCORD_TOKEN")
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
@@ -41,9 +46,15 @@ async def timeout(ctx, member: discord.Member, minutes: int, *, reason: Optional
     await member.remove_roles(timeout_role)
     await member.send("Du wurdest enttimeoutet.")
     await ctx.send(f"{member.mention} wurde enttimeoutet.")
-    #ein help befehl damit man alle commands sehen kann
-    @bot.command()
-    async def help(ctx)
-        await ctx.send("Hier sind alle Commands: !timeout, !help")
-        #starte den bot
-        bot.run("MTM1NDg1NzgxNjYyMzQxOTQzNA.GdSChN.QyEsppu0oAei8eRE4T4m6-Skxt03CB6mG5-rDE")
+
+# Help-Befehl
+@bot.command()
+async def help(ctx):
+    embed = discord.Embed(title="Befehlsliste", description="Hier sind alle verfügbaren Befehle:", color=discord.Color.blue())
+    embed.add_field(name="`!timeout [@User] [Minuten] [Grund]`", value="Timeoutet einen User für eine bestimmte Zeit.", inline=False)
+    embed.add_field(name="`/timeout [@User] [Minuten] [Grund]`", value="Slash-Command-Version von `!timeout`.", inline=False)
+    embed.add_field(name="`!help`", value="Zeigt diese Hilfeseite an.", inline=False)
+    await ctx.send(embed=embed)
+
+# Starte den Bot
+bot.run(TOKEN)
