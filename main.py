@@ -20,7 +20,7 @@ async def hilfe(ctx):
     embed.add_field(name="`!hilfe`", value="Zeigt diese Hilfeseite an.", inline=False)
     await ctx.send(embed=embed)
     #jemanden timeout geben
-    @bot.prefix_command(name="timeout")
+    @bot.command_prefix(name="timeout")
     async def timeout(ctx, member: discord.Member, minutes: int, *, reason: Optional[str] = "Kein Grund angegeben."):
         if ctx.author.guild_permissions.administrator:
             await member.add_roles(discord.utils.get(ctx.guild.roles, name="Timeout"))
@@ -28,6 +28,7 @@ async def hilfe(ctx):
             await asyncio.sleep(minutes * 60)
             await member.remove_roles(discord.utils.get(ctx.guild.roles, name="Timeout"))
             await ctx.send(f"{member.mention} ist wieder enttimeoutet.")
+            #
             
         
             
