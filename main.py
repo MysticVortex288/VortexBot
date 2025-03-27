@@ -41,7 +41,9 @@ async def timeout(ctx, member: discord.Member, minutes: int, *, reason: Optional
     await member.remove_roles(timeout_role)
     await member.send("Du wurdest enttimeoutet.")
     await ctx.send(f"{member.mention} wurde enttimeoutet.")
-
-# Bot starten
-bot.run("TOKEN")
-
+    #ein help befehl damit man alle commands sehen kann
+    @bot.command()
+    async def help(ctx)
+        await ctx.send("Hier sind alle Commands: !timeout, !help")
+        #starte den bot
+        bot.run("MTM1NDg1NzgxNjYyMzQxOTQzNA.GdSChN.QyEsppu0oAei8eRE4T4m6-Skxt03CB6mG5-rDE")
