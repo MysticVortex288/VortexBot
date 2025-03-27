@@ -35,7 +35,3 @@ async def timeout(ctx, member: discord.Member, minutes: int, *, reason: Optional
         #diese befehle sollen mit slash und prefix funktionieren
         @bot.discord_slash
         @bot.discord_prefix
-        
-
-
-
