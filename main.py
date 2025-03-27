@@ -54,6 +54,13 @@ async def hilfe(ctx):
     embed.add_field(name="`/timeout [@User] [Minuten] [Grund]`", value="Slash-Command-Version von `!timeout`.", inline=False)
     embed.add_field(name="`!hilfe`", value="Zeigt diese Hilfeseite an.", inline=False)
     await ctx.send(embed=embed)
+#timeout rolle erstellen
+@bot.command()
+@commands.has_permissions(manage_messages=True)
+async def setup(ctx):
+    timeout_role = await ctx.guild.create_role(name="Timeout")
+    await ctx.send(f"Die Rolle {timeout_role.mention} wurde erstellt.") 
+
 
 # Starte den Bot
 print(f"Token gefunden: {TOKEN[:5]}**********")  # Zeigt nur einen Teil des Tokens für Sicherheit
