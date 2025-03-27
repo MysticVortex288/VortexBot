@@ -47,13 +47,12 @@ async def timeout(ctx, member: discord.Member, minutes: int, *, reason: Optional
     await member.send("Du wurdest enttimeoutet.")
     await ctx.send(f"{member.mention} wurde enttimeoutet.")
 
-# Help-Befehl
-@bot.command()
-async def help(ctx):
+@bot.command(name="hilfe")  # Neuer Name, um Konflikte zu vermeiden
+async def hilfe(ctx):
     embed = discord.Embed(title="Befehlsliste", description="Hier sind alle verfügbaren Befehle:", color=discord.Color.blue())
     embed.add_field(name="`!timeout [@User] [Minuten] [Grund]`", value="Timeoutet einen User für eine bestimmte Zeit.", inline=False)
     embed.add_field(name="`/timeout [@User] [Minuten] [Grund]`", value="Slash-Command-Version von `!timeout`.", inline=False)
-    embed.add_field(name="`!help`", value="Zeigt diese Hilfeseite an.", inline=False)
+    embed.add_field(name="`!hilfe`", value="Zeigt diese Hilfeseite an.", inline=False)
     await ctx.send(embed=embed)
 
 # Starte den Bot
