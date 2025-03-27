@@ -56,4 +56,6 @@ async def hilfe(ctx):
     await ctx.send(embed=embed)
 
 # Starte den Bot
+print(f"Token gefunden: {TOKEN[:5]}**********")  # Zeigt nur einen Teil des Tokens für Sicherheit
+
 bot.run(TOKEN)
