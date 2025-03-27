@@ -11,41 +11,6 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Slash-Command Integration
-@bot.tree.command(name="timeout", description="Timeoute einen User für eine bestimmte Zeit.")
-@commands.has_permissions(manage_messages=True)
-async def slash_timeout(interaction: discord.Interaction, member: discord.Member, minutes: int, reason: Optional[str] = "Kein Grund angegeben"):
-    timeout_role = discord.utils.get(interaction.guild.roles, name="Timeout")
-    if not timeout_role:
-        await interaction.response.send_message("Die Rolle 'Timeout' existiert nicht!", ephemeral=True)
-        return
-
-    await member.add_roles(timeout_role)
-    await member.send(f"Du wurdest für {minutes} Minuten getimeoutet. Grund: {reason}")
-    await interaction.response.send_message(f"{member.mention} wurde für {minutes} Minuten getimeoutet. Grund: {reason}")
-
-    await asyncio.sleep(minutes * 60)
-    await member.remove_roles(timeout_role)
-    await member.send("Du wurdest enttimeoutet.")
-    await interaction.followup.send(f"{member.mention} wurde enttimeoutet.")
-
-# Prefix-Command (!timeout)
-@bot.command()
-@commands.has_permissions(manage_messages=True)
-async def timeout(ctx, member: discord.Member, minutes: int, *, reason: Optional[str] = "Kein Grund angegeben"):
-    timeout_role = discord.utils.get(ctx.guild.roles, name="Timeout")
-    if not timeout_role:
-        await ctx.send("Die Rolle 'Timeout' existiert nicht!")
-        return
-
-    await member.add_roles(timeout_role)
-    await member.send(f"Du wurdest für {minutes} Minuten getimeoutet. Grund: {reason}")
-    await ctx.send(f"{member.mention} wurde für {minutes} Minuten getimeoutet. Grund: {reason}")
-
-    await asyncio.sleep(minutes * 60)
-    await member.remove_roles(timeout_role)
-    await member.send("Du wurdest enttimeoutet.")
-    await ctx.send(f"{member.mention} wurde enttimeoutet.")
 
 @bot.command(name="hilfe")  # Neuer Name, um Konflikte zu vermeiden
 async def hilfe(ctx):
@@ -54,15 +19,16 @@ async def hilfe(ctx):
     embed.add_field(name="`/timeout [@User] [Minuten] [Grund]`", value="Slash-Command-Version von `!timeout`.", inline=False)
     embed.add_field(name="`!hilfe`", value="Zeigt diese Hilfeseite an.", inline=False)
     await ctx.send(embed=embed)
-#timeout rolle erstellen
-@bot.command()
-@commands.has_permissions(manage_messages=True)
-async def setuptimeout(ctx):
-    timeout_role = await ctx.guild.create_role(name="Timeout")
-    await ctx.send(f"Die Rolle {timeout_role.mention} wurde erstellt.")
-    # mach eine normale rolle namens member
-    member_role = await ctx.guild.create_role(name="Member")
-    await ctx.send(f"Die Rolle {member_role.mention} wurde erstellt.")
+    #jemanden timeout geben
+    @bot.command(name="timeout")
+    async def timeout(ctx, member: discord.Member, minutes: int, *, reason: Optional[str] = "Kein Grund angegeben."):
+        if ctx.author.guild_permissions.administrator:
+            await member.add_roles(discord.utils.get(ctx.guild.roles, name="Timeout"))
+            await ctx.send(f"{member.mention} wurde für {minutes} Minuten getimeoutet. Grund: {reason}")
+            await asyncio.sleep(minutes * 60)
+            await member.remove_roles(discord.utils.get(ctx.guild.roles, name="Timeout"))
+            await ctx.send(f"{member.mention} ist wieder enttimeoutet.")
+            
 
     
     
