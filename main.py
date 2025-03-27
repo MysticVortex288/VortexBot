@@ -10,25 +10,20 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
+#wenn jemand den server betritt oder verlässt dann wird das ausgegeben
+@bot.event
+async def on_member_join(member):
+    print(f"{member} ist dem Server beigetreten.")
+    @bot.event
+    async def on_member_remove(member):
+        print(f"{member} hat den Server verlassen.")
+        #wenn der bot gestartet wird dann wird das ausgegeben
+        @bot.event
+        async def on_ready():
+            print(f"Bot ist bereit als {bot.user}.")
 
 
-@bot.command(name="hilfe")  # Neuer Name, um Konflikte zu vermeiden
-async def hilfe(ctx):
-    embed = discord.Embed(title="Befehlsliste", description="Hier sind alle verfügbaren Befehle:", color=discord.Color.blue())
-    embed.add_field(name="`!timeout [@User] [Minuten] [Grund]`", value="Timeoutet einen User für eine bestimmte Zeit.", inline=False)
-    embed.add_field(name="`/timeout [@User] [Minuten] [Grund]`", value="Slash-Command-Version von `!timeout`.", inline=False)
-    embed.add_field(name="`!hilfe`", value="Zeigt diese Hilfeseite an.", inline=False)
-    await ctx.send(embed=embed)
-    #jemanden timeout geben
-    @bot.command_prefix(name="timeout")
-    async def timeout(ctx, member: discord.Member, minutes: int, *, reason: Optional[str] = "Kein Grund angegeben."):
-        if ctx.author.guild_permissions.administrator:
-            await member.add_roles(discord.utils.get(ctx.guild.roles, name="Timeout"))
-            await ctx.send(f"{member.mention} wurde für {minutes} Minuten getimeoutet. Grund: {reason}")
-            await asyncio.sleep(minutes * 60)
-            await member.remove_roles(discord.utils.get(ctx.guild.roles, name="Timeout"))
-            await ctx.send(f"{member.mention} ist wieder enttimeoutet.")
-            #
+
             
         
             
