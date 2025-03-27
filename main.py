@@ -60,14 +60,7 @@ async def hilfe(ctx):
 async def setuptimeout(ctx):
     timeout_role = await ctx.guild.create_role(name="Timeout")
     await ctx.send(f"Die Rolle {timeout_role.mention} wurde erstellt.") 
-    #für alle Nachrichten die der bot schickt eine schöne embed nachricht
-    @bot.event
-    async def on_message(message):
-        if message.author == bot.user:
-            embed = discord.Embed(title="Nachricht gesendet", description=message.content, color=discord.Color.green())
-            await message.channel.send(embed=embed)
-            await bot.process_commands(message)
-
+    
 
 # Starte den Bot
 print(f"Token gefunden: {TOKEN[:5]}**********")  # Zeigt nur einen Teil des Tokens für Sicherheit
