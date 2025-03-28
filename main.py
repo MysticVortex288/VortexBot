@@ -1,48 +1,46 @@
 import discord
 from discord.ext import commands
-from typing import Optional
+from discord import app_commands
 import os
 from dotenv import load_dotenv
-import asyncio
+
+load_dotenv()
+
+TOKEN = os.getenv('TOKEN')
+PREFIX = '!'
+
+intents = discord.Intents.default()
+intents.members = True  # Aktiviert die Mitglieder-Intents
+
+bot = commands.Bot(command_prefix=PREFIX, intents=intents)
+
+# Timeout-Befehl für Prefix
+@bot.command()
+async def timeout(ctx, member: discord.Member, seconds: int):
+    await member.timeout(discord.utils.utcnow() + discord.timedelta(seconds=seconds), reason="Timeout command")
+    await ctx.send(f"{member.mention} wurde für {seconds} Sekunden getimed out.")
+
+# Timeout-Befehl für Slash-Commands
+@bot.tree.command(name="timeout", description="Time out a member for a specific duration.")
+async def timeout_slash(interaction: discord.Interaction, member: discord.Member, seconds: int):
+    await member.timeout(discord.utils.utcnow() + discord.timedelta(seconds=seconds), reason="Timeout command")
+    await interaction.response.send_message(f"{member.mention} wurde für {seconds} Sekunden getimed out.", ephemeral=True)
+
+# Online-Befehl für Prefix
+@bot.command()
+async def online(ctx):
+    await ctx.send("Ich bin online!")
+
+# Online-Befehl für Slash-Commands
+@bot.tree.command(name="online", description="Check if the bot is online.")
+async def online_slash(interaction: discord.Interaction):
+    await interaction.response.send_message("Ich bin online!", ephemeral=True)
 
 @bot.event
 async def on_ready():
-    print(f"Bot ist bereit als {bot.user}")
-    
-    # Endlosschleife, damit der Bot aktiv bleibt
-    while True:
-        await asyncio.sleep(3600)  # 1 Stunde warten, bevor der nächste Durchlauf startet
-
-
-load_dotenv()  # Lädt Umgebungsvariablen aus der .env-Datei
-TOKEN = os.getenv("DISCORD_TOKEN")
-
-intents = discord.Intents.all()
-bot = commands.Bot(command_prefix="!", intents=intents)
-#wenn jemand den server betritt oder verlässt dann wird das ausgegeben
-@bot.event
-async def on_member_join(member):
-    print(f"{member} ist dem Server beigetreten.")
-    @bot.event
-    async def on_member_remove(member):
-        print(f"{member} hat den Server verlassen.")
-        #wenn der bot gestartet wird dann wird das ausgegeben
-        @bot.event
-        async def on_ready():
-            print(f"Bot ist bereit als {bot.user}.")
-            
-
-
-
-            
-        
-            
-
-    
-    
-    
-
-# Starte den Bot
-print(f"Token gefunden: {TOKEN[:5]}**********")  # Zeigt nur einen Teil des Tokens für Sicherheit
-
-bot.run(TOKEN)
+    print(f"Bot ist bereit als {bot.user}.")
+    try:
+        await bot.tree.sync()  # Synchronisiert die Slash-Befehle
+        print("Slash-Commands synchronisiert!")
+    except Exception as e:
+        print(f"Fehler bei der Synchronisation der Slash-Commands: {e}")
