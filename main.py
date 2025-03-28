@@ -48,12 +48,14 @@ async def timeout_slash(interaction: discord.Interaction, member: discord.Member
 # Online-Befehl für Prefix
 @bot.command()
 async def online(ctx):
-    await ctx.send("Ich bin online!")
+    await ctx.send("✨ **Ich bin jetzt online!** ✨\n"
+        "Bereit, dir zu helfen – was kann ich für dich tun? 🤔")
 
 # Online-Befehl für Slash-Commands
 @bot.tree.command(name="online", description="Check if the bot is online.")
 async def online_slash(interaction: discord.Interaction):
-    await interaction.response.send_message("Ich bin online!", ephemeral=True)
+    await interaction.response.send_message("✨ **Ich bin jetzt online!** ✨\n"
+        "Bereit, dir zu helfen – was kann ich für dich tun? 🤔", ephemeral=True)
 
 # Event, wenn der Bot bereit ist
 @bot.event
