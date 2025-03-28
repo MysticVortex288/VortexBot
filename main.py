@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 TOKEN = os.getenv('TOKEN')
-print(f"TOKEN: {TOKEN}")
+print(f"TOKEN: {TOKEN}")  # Zeigt den Token zur Überprüfung an, sollte aber im echten Einsatz entfernt werden.
 PREFIX = '!'
 
 intents = discord.Intents.default()
@@ -45,6 +45,6 @@ async def on_ready():
         print("Slash-Commands synchronisiert!")
     except Exception as e:
         print(f"Fehler bei der Synchronisation der Slash-Commands: {e}")
-        
-        bot.run(TOKEN) #Starte den Bot mit dem Token
-        
+
+# Starte den Bot mit dem Token
+bot.run(TOKEN)
