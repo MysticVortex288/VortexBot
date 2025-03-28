@@ -44,3 +44,5 @@ async def on_ready():
         print("Slash-Commands synchronisiert!")
     except Exception as e:
         print(f"Fehler bei der Synchronisation der Slash-Commands: {e}")
+        bot.run(TOKEN) #Starte den Bot mit dem Token
+        
