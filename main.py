@@ -1,6 +1,5 @@
 import discord
 from discord.ext import commands
-from discord import app_commands
 import os
 from dotenv import load_dotenv
 
@@ -36,37 +35,24 @@ async def timeout(ctx, member: discord.Member, seconds: int):
     except Exception as e:
         await ctx.send(f"Fehler: {e}")
 
-# Timeout-Befehl für Slash-Commands
-@bot.tree.command(name="timeout", description="Time out a member for a specific duration.")
-async def timeout_slash(interaction: discord.Interaction, member: discord.Member, seconds: int):
-    try:
-        await member.timeout(discord.utils.utcnow() + discord.timedelta(seconds=seconds), reason="Timeout command")
-        await interaction.response.send_message(f"{member.mention} wurde für {seconds} Sekunden getimed out.", ephemeral=True)
-    except Exception as e:
-        await interaction.response.send_message(f"Fehler: {e}", ephemeral=True)
-
 # Online-Befehl für Prefix
 @bot.command()
 async def online(ctx):
     await ctx.send("✨ **Ich bin jetzt online!** ✨\n"
         "Bereit, dir zu helfen – was kann ich für dich tun? 🤔")
 
-# Online-Befehl für Slash-Commands
-@bot.tree.command(name="online", description="Check if the bot is online.")
-async def online_slash(interaction: discord.Interaction):
-    await interaction.response.send_message("✨ **Ich bin jetzt online!** ✨\n"
-        "Bereit, dir zu helfen – was kann ich für dich tun? 🤔", ephemeral=True)
+# Setup Invite-Befehl für Prefix
+@bot.command()
+async def setupinvite(ctx):
+    # Hier wird der Invite-Link generiert
+    invite_link = discord.utils.oauth_url(bot.user.id)
+    await ctx.send(f"Hier ist der Invite-Link für diesen Bot: {invite_link}\nLade den Bot zu deinem Server ein! 🚀")
 
 # Event, wenn der Bot bereit ist
 @bot.event
 async def on_ready():
     print(f"Bot ist bereit als {bot.user}.")
-    try:
-        # Synchronisiere die Slash-Befehle korrekt
-        await bot.tree.sync()
-        print("Slash-Commands synchronisiert!")
-    except Exception as e:
-        print(f"Fehler bei der Synchronisation der Slash-Commands: {e}")
+    print("Bot ist jetzt online und bereit, Befehle entgegenzunehmen! 🚀")
 
 # Starte den Bot mit dem Token
 bot.run(TOKEN)
