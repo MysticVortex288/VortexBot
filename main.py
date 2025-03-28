@@ -62,7 +62,8 @@ async def online_slash(interaction: discord.Interaction):
 async def on_ready():
     print(f"Bot ist bereit als {bot.user}.")
     try:
-        await bot.tree.sync()  # Synchronisiert die Slash-Befehle
+        # Synchronisiere die Slash-Befehle korrekt
+        await bot.tree.sync()
         print("Slash-Commands synchronisiert!")
     except Exception as e:
         print(f"Fehler bei der Synchronisation der Slash-Commands: {e}")
