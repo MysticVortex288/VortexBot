@@ -107,6 +107,11 @@ async def ticket(ctx):
     # Erstelle den Ticket-Button
     ticket_button = discord.ui.Button(label="Ticket erstellen", style=discord.ButtonStyle.primary)
 
+    # Erstelle eine View, um den Button anzuzeigen
+    ticket_view = discord.ui.View()
+    ticket_view.add_item(ticket_button)
+
+    # Callback für den Ticket-Button
     async def ticket_callback(interaction: discord.Interaction):
         guild = interaction.guild
         channel = await guild.create_text_channel(f"ticket-{interaction.user.name}", category=None)
@@ -115,8 +120,11 @@ async def ticket(ctx):
         await channel.send(f"{interaction.user.mention}, dein Ticket wurde erstellt!")
         await interaction.response.send_message(f"Dein Ticket wurde erstellt: {channel.mention}", ephemeral=True)
 
+    # Setze die Callback-Funktion
     ticket_button.callback = ticket_callback
-    await ctx.send(f"Ticket Button: {ticket_button}")
+
+    # Sende die Nachricht mit der View (der Button)
+    await ctx.send("Klicke auf den Button, um ein Ticket zu erstellen.", view=ticket_view)
 
 # Event, wenn der Bot bereit ist
 @bot.event
