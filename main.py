@@ -2,20 +2,20 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 import os
+import asyncio
 from datetime import timedelta
 
 # Lade Umgebungsvariablen aus der .env-Datei
 load_dotenv()
 TOKEN = os.getenv('TOKEN')
 
-# Überprüfen, ob der Token korrekt geladen wurde
 if TOKEN is None:
     print("Fehler: Der Token wurde nicht geladen!")
 
 # Prefix für die Befehle
 PREFIX = '!'
 
-# Erstelle die Intents für den Bot
+# Intents setzen
 intents = discord.Intents.default()
 intents.members = True  
 intents.message_content = True  
@@ -25,32 +25,34 @@ bot = commands.Bot(command_prefix=PREFIX, intents=intents)
 
 # ===================== TIMEOUT & UNTIMEOUT =====================
 @bot.command()
+@commands.has_permissions(moderate_members=True)
 async def timeout(ctx, member: discord.Member, minutes: int):
     try:
         until = discord.utils.utcnow() + timedelta(minutes=minutes)
         await member.timeout(until, reason="Timeout command")
-        await ctx.send(f"{member.mention} wurde für {minutes} Minuten getimed out.")
+        await ctx.send(f"🔒 {member.mention} wurde für {minutes} Minuten getimed out.")
     except Exception as e:
-        await ctx.send(f"Fehler: {e}")
+        await ctx.send(f"❌ Fehler: {e}")
 
 @bot.command()
+@commands.has_permissions(moderate_members=True)
 async def untimeout(ctx, member: discord.Member):
     try:
         await member.timeout(None, reason="Untimeout command")
-        await ctx.send(f"{member.mention} wurde enttimed out.")
+        await ctx.send(f"✅ {member.mention} wurde enttimed out.")
     except Exception as e:
-        await ctx.send(f"Fehler: {e}")
+        await ctx.send(f"❌ Fehler: {e}")
 
 # ===================== ONLINE CHECK =====================
 @bot.command()
 async def online(ctx):
-    await ctx.send("✨ **Ich bin jetzt online!** ✨\nBereit, dir zu helfen – was kann ich für dich tun? 🤔")
+    await ctx.send("✨ **Ich bin online!** 🚀")
 
 # ===================== INVITE SYSTEM =====================
 @bot.command()
 async def setupinvite(ctx):
     invite_link = discord.utils.oauth_url(bot.user.id, permissions=discord.Permissions(permissions=8))
-    await ctx.send(f"Hier ist der Invite-Link für diesen Bot: {invite_link}\nLade den Bot zu deinem Server ein! 🚀")
+    await ctx.send(f"📩 **Hier ist der Invite-Link:**\n{invite_link}")
 
 @bot.event
 async def on_member_join(member):
@@ -87,11 +89,11 @@ class TicketButton(discord.ui.Button):
         await channel.set_permissions(guild.default_role, read_messages=False)
 
         await channel.send(
-            f"{interaction.user.mention}, dein Ticket wurde erstellt! Ein Support-Mitarbeiter wird sich bald melden. ✅",
+            f"{interaction.user.mention}, dein Ticket wurde erstellt! ✅\nEin Support-Mitarbeiter wird sich bald melden.",
             view=CloseTicketView()
         )
         
-        await interaction.response.send_message(f"Dein Ticket wurde erstellt: {channel.mention}", ephemeral=True)
+        await interaction.response.send_message(f"🎟️ Dein Ticket wurde erstellt: {channel.mention}", ephemeral=True)
 
 class CloseTicketView(discord.ui.View):
     def __init__(self):
@@ -120,33 +122,41 @@ class DeleteTicketButton(discord.ui.Button):
         channel = interaction.channel
         await channel.send("🗑️ **Dieses Ticket wird in 5 Sekunden gelöscht...**")
         await interaction.response.defer()
-        await discord.utils.sleep_until(discord.utils.utcnow().replace(second=discord.utils.utcnow().second + 5))
+        await asyncio.sleep(5)
         await channel.delete()
 
 @bot.command()
 async def ticket(ctx):
-    await ctx.send("🎟️ **Brauchst du Hilfe? Klicke auf den Button, um ein Ticket zu erstellen!**", view=TicketView())
+    await ctx.send("🎟️ **Klicke auf den Button, um ein Ticket zu erstellen!**", view=TicketView())
+
 # ====================== HELP COMMAND =====================
-# ein Help befehl damit man alle commands sieht
 @bot.command()
 async def help(ctx):
-    embed = discord.Embed(title="Hilfe", description="Hier sind die verfügbaren Befehle:", color=discord.Color.blue())
-    embed.add_field(name="!timeout @User Minuten", value="Setzt einen Timeout für den angegebenen Benutzer.", inline=False)
-    embed.add_field(name="!untimeout @User", value="Hebt den Timeout für den angegebenen Benutzer auf.", inline=False)
-    embed.add_field(name="!online", value="Zeigt an, dass der Bot online ist.", inline=False)
-    embed.add_field(name="!setupinvite", value="Erstellt einen Invite-Link für den Bot.", inline=False)
-    embed.add_field(name="!invite_tracker", value="Aktiviert den Invite-Tracker.", inline=False)
-    embed.add_field(name="!ticket", value="Erstellt ein Ticket für den Benutzer.", inline=False)
-    embed.set_footer(text="Weiter Befehle werden bald hinzugefügt!")
+    embed = discord.Embed(title="📜 Befehlsübersicht", description="Hier sind die verfügbaren Befehle:", color=discord.Color.blue())
+    embed.add_field(name="🔹 **Moderation**", value="⚠️ Diese Befehle sind nur für Moderatoren!", inline=False)
+    embed.add_field(name="`!timeout @User Minuten`", value="Setzt einen Timeout für den Benutzer.", inline=True)
+    embed.add_field(name="`!untimeout @User`", value="Hebt den Timeout auf.", inline=True)
+    
+    embed.add_field(name="🔹 **Allgemeine Befehle**", value="Diese Befehle kann jeder nutzen.", inline=False)
+    embed.add_field(name="`!online`", value="Zeigt an, dass der Bot online ist.", inline=True)
+    embed.add_field(name="`!setupinvite`", value="Erstellt einen Invite-Link für den Bot.", inline=True)
+    embed.add_field(name="`!invite_tracker`", value="Aktiviert den Invite-Tracker.", inline=True)
+    
+    embed.add_field(name="🎟️ **Ticketsystem**", value="Unterstützung per Ticket.", inline=False)
+    embed.add_field(name="`!ticket`", value="Erstellt ein Support-Ticket.", inline=True)
+    
+    embed.set_footer(text="⚡ Mehr Funktionen folgen bald!")
     await ctx.send(embed=embed)
+
 # ===================== BOT START =====================
 @bot.event
 async def on_ready():
     print(f"✅ Bot ist online als {bot.user}")
+
     try:
         await bot.tree.sync()
         print("✅ Slash-Commands synchronisiert!")
     except Exception as e:
-        print(f"❌ Fehler bei der Synchronisation der Slash-Befehle: {e}")
+        print(f"❌ Fehler bei der Synchronisation: {e}")
 
 bot.run(TOKEN)
