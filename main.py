@@ -56,13 +56,42 @@ async def setupinvite(ctx):
 
 @bot.event
 async def on_member_join(member):
+    # Begrüßungsnachricht senden
     if member.guild.system_channel:
         await member.guild.system_channel.send(f"🎉 {member.mention} ist dem Server beigetreten!")
 
-@bot.event
-async def on_member_remove(member):
-    if member.guild.system_channel:
-        await member.guild.system_channel.send(f"😢 {member.mention} hat den Server verlassen.")
+    # Rolle "Unverified" holen oder erstellen
+    role = discord.utils.get(member.guild.roles, name="Unverified")
+    if not role:
+        role = await member.guild.create_role(name="Unverified", reason="Verifizierungsrolle für neue Mitglieder")
+
+    # Rolle "Unverified" zuweisen, damit der User keine Nachrichten schreiben kann
+    await member.add_roles(role)
+
+    # Verifizierungsnachricht in DMs senden
+    await member.send(
+        f"Willkommen {member.mention}! Bitte verifiziere dich, indem du auf den Button unten klickst.\n\n"
+        "Wenn du dich nicht verifizierst, kannst du keine Nachrichten im Server senden."
+    )
+
+    # Verifizierungsbutton hinzufügen
+    view = discord.ui.View()
+    button = discord.ui.Button(label="Verifizieren", style=discord.ButtonStyle.green)
+
+    async def button_callback(interaction: discord.Interaction):
+        if interaction.user == member:  # Sicherstellen, dass nur der Benutzer selbst den Button drückt
+            # Rolle "Unverified" entfernen
+            await member.remove_roles(role)
+            # Bestätigung senden
+            await interaction.response.send_message(f"Du bist jetzt verifiziert, {member.mention}!", ephemeral=True)
+        else:
+            await interaction.response.send_message("Du kannst diesen Button nur für dich selbst verwenden.", ephemeral=True)
+
+    button.callback = button_callback
+    view.add_item(button)
+
+    # Verifizierungsbutton in der DM-Nachricht anhängen
+    await member.send("Klicke den Button, um dich zu verifizieren!", view=view)
 
 # ===================== TICKET SYSTEM =====================
 class TicketView(discord.ui.View):
@@ -197,43 +226,6 @@ async def countingstop(ctx):
     current_count = 1
     last_user = None
     await ctx.send("🛑 Das Zählen wurde gestoppt!")
-    #====================== VERIFIKATION =====================
-    @bot.event
-async def on_member_join(member):
-    # Rolle "Unverified" holen oder erstellen
-    role = discord.utils.get(member.guild.roles, name="Unverified")
-    if not role:
-        role = await member.guild.create_role(name="Unverified", reason="Verifizierungsrolle für neue Mitglieder")
-
-    # Rolle "Unverified" zuweisen, damit der User keine Nachrichten schreiben kann
-    await member.add_roles(role)
-
-    # Verifizierungsnachricht in DMs senden
-    await member.send(
-        f"Willkommen {member.mention}! Bitte verifiziere dich, indem du auf den Button unten klickst.\n\n"
-        "Wenn du dich nicht verifizierst, kannst du keine Nachrichten im Server senden."
-    )
-
-    # Verifizierungsbutton hinzufügen
-    view = discord.ui.View()
-    button = discord.ui.Button(label="Verifizieren", style=discord.ButtonStyle.green)
-
-    async def button_callback(interaction: discord.Interaction):
-        if interaction.user == member:  # Sicherstellen, dass nur der Benutzer selbst den Button drückt
-            # Rolle "Unverified" entfernen
-            await member.remove_roles(role)
-            # Bestätigung senden
-            await interaction.response.send_message(f"Du bist jetzt verifiziert, {member.mention}!", ephemeral=True)
-        else:
-            await interaction.response.send_message("Du kannst diesen Button nur für dich selbst verwenden.", ephemeral=True)
-
-    button.callback = button_callback
-    view.add_item(button)
-
-    # Verifizierungsbutton in der DM-Nachricht anhängen
-    await member.send("Klicke den Button, um dich zu verifizieren!", view=view)
-
-
 
 # ===================== HELP COMMAND =====================
 @bot.command()
@@ -252,6 +244,7 @@ async def hilfe(ctx):
     embed.add_field(name="`!countingstop`", value="Stoppt das Counting.", inline=True)
     embed.add_field(name="🎟️ **Ticketsystem**", value="Unterstützung per Ticket.", inline=False)
     embed.add_field(name="`!ticket`", value="Erstellt ein Ticket.", inline=True)
+
 # ===================== BOT START =====================
 @bot.event
 async def on_ready():
