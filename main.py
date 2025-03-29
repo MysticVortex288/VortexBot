@@ -131,7 +131,7 @@ async def ticket(ctx):
 
 # ====================== HELP COMMAND =====================
 @bot.command()
-async def help(ctx):
+async def hilfe(ctx):
     embed = discord.Embed(title="📜 Befehlsübersicht", description="Hier sind die verfügbaren Befehle:", color=discord.Color.blue())
     embed.add_field(name="🔹 **Moderation**", value="⚠️ Diese Befehle sind nur für Moderatoren!", inline=False)
     embed.add_field(name="`!timeout @User Minuten`", value="Setzt einen Timeout für den Benutzer.", inline=True)
@@ -147,6 +147,12 @@ async def help(ctx):
     
     embed.set_footer(text="⚡ Mehr Funktionen folgen bald!")
     await ctx.send(embed=embed)
+    # ===================== Verifiycation =====================
+    # Wenn jemand joint soll er eine Dm von Bot bekommen wo ein Knopf ist darauf steht verifizieren bis man nicht verifieziert ist kann man keine nachrichten drfauf schicken
+    @bot.event
+    async def on_member_join(member):
+        channel = member.dm_channel
+
 
 # ===================== BOT START =====================
 @bot.event
