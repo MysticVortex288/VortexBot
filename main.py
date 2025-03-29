@@ -230,7 +230,7 @@ async def on_member_join(member):
     button.callback = button_callback
     view.add_item(button)
 
-    # Verifizierungsbutton in der DM nachricht anhängen
+    # Verifizierungsbutton in der DM-Nachricht anhängen
     await member.send("Klicke den Button, um dich zu verifizieren!", view=view)
 
 
