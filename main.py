@@ -137,7 +137,7 @@ async def hilfe(ctx):
     embed.add_field(name="🔹 **Moderation**", value="⚠️ Diese Befehle sind nur für Moderatoren!", inline=False)
     embed.add_field(name="`!timeout @User Minuten`", value="Setzt einen Timeout für den Benutzer.", inline=True)
     embed.add_field(name="`!untimeout @User`", value="Hebt den Timeout auf.", inline=True)
-    
+    embed.add_field(name="`!kick @User Grund`", value="Kickt den Benutzer vom Server.", inline=True)
     embed.add_field(name="🔹 **Allgemeine Befehle**", value="Diese Befehle kann jeder nutzen.", inline=False)
     embed.add_field(name="`!online`", value="Zeigt an, dass der Bot online ist.", inline=True)
     embed.add_field(name="`!setupinvite`", value="Erstellt einen Invite-Link für den Bot.", inline=True)
@@ -153,6 +153,29 @@ async def hilfe(ctx):
     @bot.event
     async def on_member_join(member):
         channel = member.dm_channel
+        # ========== Wenn der Bot keine DM hat, erstelle eine ==========
+        @bot.event
+        async def on_ready():
+            if channel is None:
+                channel = await member.create_dm()
+                await channel.send(f"Willkommen {member.mention}! Klicke auf den Knopf, um dich zu verifizieren.", view=VerificationView())
+                # ========== Kick command ==========
+                @bot.command()
+                @commands.has_permissions(moderate_members=True)
+                @commands.has_permissions(kick_member=True)
+                async def kick(ctx, member: discord.Member, *, reason=None):
+                    if member == ctx.author:
+                        await ctx.send(":X Du kannst dich nicht selbst kicken.")
+                        await ctx.send(":X Du kannst diesen Benutzer nicht kicken.")
+                        return
+                    if reason is None:
+                        reason = "Kein Grund angegeben."
+                        await member.kick(reason=reason)
+                        await ctx.send(f":white_check_mark: {member.mention} wurde gekickt.")
+                    else:
+                        await member.kick(reason=reason)
+                        await ctx.send(f":white_check_mark: {member.mention} wurde gekickt. Grund: {reason}")
+
 
 
 # ===================== BOT START =====================
