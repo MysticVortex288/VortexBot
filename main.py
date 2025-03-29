@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 import os
-from datetime import datetime, timedelta  # Korrigierter Import!
+from datetime import timedelta  # datetime entfernt, da wir discord.utils.utcnow() nutzen
 
 # Lade Umgebungsvariablen aus der .env-Datei
 load_dotenv()
@@ -29,7 +29,7 @@ bot = commands.Bot(command_prefix=PREFIX, intents=intents)
 @bot.command()
 async def timeout(ctx, member: discord.Member, minutes: int):
     try:
-        until = datetime.utcnow() + timedelta(minutes=minutes)  # Korrigiert!
+        until = discord.utils.utcnow() + timedelta(minutes=minutes)  # Richtige Zeitzone!
         await member.timeout(until, reason="Timeout command")
         await ctx.send(f"{member.mention} wurde für {minutes} Minuten getimed out.")
     except Exception as e:
