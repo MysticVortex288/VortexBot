@@ -227,23 +227,58 @@ async def countingstop(ctx):
     last_user = None
     await ctx.send("🛑 Das Zählen wurde gestoppt!")
 
-# ===================== HELP COMMAND =====================
+# ================= Reaction-Roles =====================
 @bot.command()
-async def hilfe(ctx):
-    embed = discord.Embed(title="📜 Befehlsübersicht", description="Hier sind die verfügbaren Befehle:", color=discord.Color.blue())
-    embed.add_field(name="🔹 **Moderation**", value="⚠️ Diese Befehle sind nur für Moderatoren!", inline=False)
-    embed.add_field(name="`!timeout @User Minuten`", value="Setzt einen Timeout für den Benutzer.", inline=True)
-    embed.add_field(name="`!untimeout @User`", value="Hebt den Timeout auf.", inline=True)
-    embed.add_field(name="`!kick @User Grund`", value="Kickt den Benutzer vom Server.", inline=True)
-    embed.add_field(name="🔹 **Allgemeine Befehle**", value="Diese Befehle kann jeder nutzen.", inline=False)
-    embed.add_field(name="`!online`", value="Zeigt an, dass der Bot online ist.", inline=True)
-    embed.add_field(name="`!setupinvite`", value="Erstellt einen Invite-Link für den Bot.", inline=True)
-    embed.add_field(name="`!invite_tracker`", value="Aktiviert den Invite-Tracker.", inline=True)
-    embed.add_field(name="🔹 **Counting Befehle**", value="Diese Befehle kann jeder nutzen.", inline=False)
-    embed.add_field(name="`!setupcounting @channel`", value="Setzt den Counting-Channel.", inline=True)
-    embed.add_field(name="`!countingstop`", value="Stoppt das Counting.", inline=True)
-    embed.add_field(name="🎟️ **Ticketsystem**", value="Unterstützung per Ticket.", inline=False)
-    embed.add_field(name="`!ticket`", value="Erstellt ein Ticket.", inline=True)
+async def reactionrole(ctx):
+    # Erste Rolle ist Altersgruppe 12+, dann 16+ und dann 18+
+    role_12 = discord.utils.get(ctx.guild.roles, name="12+")
+    role_16 = discord.utils.get(ctx.guild.roles, name="16+")
+    role_18 = discord.utils.get(ctx.guild.roles, name="18+")
+
+    # Wenn die Rollen nicht existieren, erstelle sie
+    if not role_12:
+        role_12 = await ctx.guild.create_role(name="12+")
+    if not role_16:
+        role_16 = await ctx.guild.create_role(name="16+")
+    if not role_18:
+        role_18 = await ctx.guild.create_role(name="18+")
+
+    # Erstelle die Nachricht, in der die Rollen ausgewählt werden können
+    embed = discord.Embed(title=":performing_arts: Wähle deine Altersgruppe", description="Klicke auf die Knöpfe, um deine Altersgruppe auszuwählen.", color=discord.Color.blue())
+    embed.add_field(name=":one: 12+", value="Klicke auf den Knopf, um die Rolle 12+ zu erhalten.", inline=False) 
+    embed.add_field(name=":two: 16+", value="Klicke auf den Knopf, um die Rolle 16+ zu erhalten.", inline=False)
+    embed.add_field(name=":three: 18+", value="Klicke auf den Knopf, um die Rolle 18+ zu erhalten.", inline=False)
+
+    message = await ctx.send(embed=embed)
+
+    # Erstelle die Knöpfe für die Rollen
+    view = discord.ui.View(timeout=None)
+
+    async def add_remove_role(interaction: discord.Interaction, role):
+        # Überprüfe, ob der Benutzer bereits die Rolle hat
+        if role in interaction.user.roles:
+            await interaction.user.remove_roles(role)
+            await interaction.response.send_message(f"Die Rolle **{role.name}** wurde entfernt.", ephemeral=True)
+        else:
+            await interaction.user.add_roles(role)
+            await interaction.response.send_message(f"Die Rolle **{role.name}** wurde hinzugefügt.", ephemeral=True)
+
+    button_12 = discord.ui.Button(label="12+", style=discord.ButtonStyle.primary)
+    button_12.callback = lambda interaction: add_remove_role(interaction, role_12)
+    
+    button_16 = discord.ui.Button(label="16+", style=discord.ButtonStyle.primary)
+    button_16.callback = lambda interaction: add_remove_role(interaction, role_16)
+    
+    button_18 = discord.ui.Button(label="18+", style=discord.ButtonStyle.primary)
+    button_18.callback = lambda interaction: add_remove_role(interaction, role_18)
+
+    # Füge die Buttons der Ansicht hinzu
+    view.add_item(button_12)
+    view.add_item(button_16)
+    view.add_item(button_18)
+
+    await message.edit(view=view)
+
 
 # ===================== BOT START =====================
 @bot.event
