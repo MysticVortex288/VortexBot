@@ -40,6 +40,9 @@ async def hilfe(ctx):
     embed.add_field(name="🎟️ **Ticketsystem**", value="Unterstützung per Ticket.", inline=False)
     embed.add_field(name="!ticket", value="Erstellt ein Ticket.", inline=True)
 
+    # Hier fehlt das Senden des Embeds
+    await ctx.send(embed=embed)
+
 # ===================== TIMEOUT & UNTIMEOUT =====================
 @bot.command()
 @commands.has_permissions(moderate_members=True)
