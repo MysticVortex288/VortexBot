@@ -22,6 +22,23 @@ intents.message_content = True
 
 # Initialisiere den Bot
 bot = commands.Bot(command_prefix=PREFIX, intents=intents)
+# ===================== HELP COMMAND =====================
+@bot.command()
+async def hilfe(ctx):
+    embed = discord.Embed(title="📜 Befehlsübersicht", description="Hier sind die verfügbaren Befehle:", color=discord.Color.blue())
+    embed.add_field(name="🔹 **Moderation**", value="⚠️ Diese Befehle sind nur für Moderatoren!", inline=False)
+    embed.add_field(name="!timeout @User Minuten", value="Setzt einen Timeout für den Benutzer.", inline=True)
+    embed.add_field(name="!untimeout @User", value="Hebt den Timeout auf.", inline=True)
+    embed.add_field(name="!kick @User Grund", value="Kickt den Benutzer vom Server.", inline=True)
+    embed.add_field(name="🔹 **Allgemeine Befehle**", value="Diese Befehle kann jeder nutzen.", inline=False)
+    embed.add_field(name="!online", value="Zeigt an, dass der Bot online ist.", inline=True)
+    embed.add_field(name="!setupinvite", value="Erstellt einen Invite-Link für den Bot.", inline=True)
+    embed.add_field(name="!invite_tracker", value="Aktiviert den Invite-Tracker.", inline=True)
+    embed.add_field(name="🔹 **Counting Befehle**", value="Diese Befehle kann jeder nutzen.", inline=False)
+    embed.add_field(name="!setupcounting @channel", value="Setzt den Counting-Channel.", inline=True)
+    embed.add_field(name="!countingstop", value="Stoppt das Counting.", inline=True)
+    embed.add_field(name="🎟️ **Ticketsystem**", value="Unterstützung per Ticket.", inline=False)
+    embed.add_field(name="!ticket", value="Erstellt ein Ticket.", inline=True)
 
 # ===================== TIMEOUT & UNTIMEOUT =====================
 @bot.command()
