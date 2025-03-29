@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 import os
-from datetime import timedelta
+from datetime import datetime, timedelta  # Korrigierter Import!
 
 # Lade Umgebungsvariablen aus der .env-Datei
 load_dotenv()
@@ -29,19 +29,20 @@ bot = commands.Bot(command_prefix=PREFIX, intents=intents)
 @bot.command()
 async def timeout(ctx, member: discord.Member, minutes: int):
     try:
-        until = discord.utils.datetime.utcnow() + timedelta(minutes=minutes)
+        until = datetime.utcnow() + timedelta(minutes=minutes)  # Korrigiert!
         await member.timeout(until, reason="Timeout command")
         await ctx.send(f"{member.mention} wurde für {minutes} Minuten getimed out.")
     except Exception as e:
         await ctx.send(f"Fehler: {e}")
-        # Untimeout-Befehl soll mit preifix funktionieren
-        @bot.command()
-        async def untimeout(ctx, member: discord.Member):
-            try:
-                await member.timeout(None, reason="Untimeout command")
-                await ctx.send(f"{member.mention} wurde enttimed out.")
-            except Exception as e:
-                await ctx.send(f"Fehler: {e}")
+
+# Untimeout-Befehl (Enttimeouten eines Spielers)
+@bot.command()
+async def untimeout(ctx, member: discord.Member):
+    try:
+        await member.timeout(None, reason="Untimeout command")
+        await ctx.send(f"{member.mention} wurde enttimed out.")
+    except Exception as e:
+        await ctx.send(f"Fehler: {e}")
 
 # Online-Befehl
 @bot.command()
