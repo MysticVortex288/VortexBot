@@ -126,6 +126,7 @@ class DeleteTicketButton(discord.ui.Button):
         await channel.delete()
 
 @bot.command()
+@commands.has_permissions(moderate_members=True)
 async def ticket(ctx):
     await ctx.send("🎟️ **Klicke auf den Button, um ein Ticket zu erstellen!**", view=TicketView())
 
