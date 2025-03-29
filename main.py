@@ -64,10 +64,6 @@ async def on_member_remove(member):
     if member.guild.system_channel:
         await member.guild.system_channel.send(f"😢 {member.mention} hat den Server verlassen.")
 
-@bot.command()
-async def invite_tracker(ctx):
-    await ctx.send(f"📩 **Invite-Tracker ist aktiv!**")
-
 # ===================== TICKET SYSTEM =====================
 class TicketView(discord.ui.View):
     def __init__(self):
@@ -130,39 +126,10 @@ class DeleteTicketButton(discord.ui.Button):
 async def ticket(ctx):
     await ctx.send("🎟️ **Klicke auf den Button, um ein Ticket zu erstellen!**", view=TicketView())
 
-# ====================== HELP COMMAND =====================
+# ===================== KICK COMMAND =====================
 @bot.command()
-async def hilfe(ctx):
-    embed = discord.Embed(title="📜 Befehlsübersicht", description="Hier sind die verfügbaren Befehle:", color=discord.Color.blue())
-    embed.add_field(name="🔹 **Moderation**", value="⚠️ Diese Befehle sind nur für Moderatoren!", inline=False)
-    embed.add_field(name="`!timeout @User Minuten`", value="Setzt einen Timeout für den Benutzer.", inline=True)
-    embed.add_field(name="`!untimeout @User`", value="Hebt den Timeout auf.", inline=True)
-    embed.add_field(name="`!kick @User Grund`", value="Kickt den Benutzer vom Server.", inline=True)
-    embed.add_field(name="🔹 **Allgemeine Befehle**", value="Diese Befehle kann jeder nutzen.", inline=False)
-    embed.add_field(name="`!online`", value="Zeigt an, dass der Bot online ist.", inline=True)
-    embed.add_field(name="`!setupinvite`", value="Erstellt einen Invite-Link für den Bot.", inline=True)
-    embed.add_field(name="`!invite_tracker`", value="Aktiviert den Invite-Tracker.", inline=True)
-    
-    embed.add_field(name="🎟️ **Ticketsystem**", value="Unterstützung per Ticket.", inline=False)
-    embed.add_field(name="`!ticket`", value="Erstellt ein Support-Ticket.", inline=True)
-    
-    embed.set_footer(text="⚡ Mehr Funktionen folgen bald!")
-    await ctx.send(embed=embed)
-    # ===================== Verifiycation =====================
-    # Wenn jemand joint soll er eine Dm von Bot bekommen wo ein Knopf ist darauf steht verifizieren bis man nicht verifieziert ist kann man keine nachrichten drfauf schicken
-    @bot.event
-    async def on_member_join(member):
-        channel = member.dm_channel
-        # ========== Wenn der Bot keine DM hat, erstelle eine ==========
-        @bot.event
-        async def on_ready():
-            if channel is None:
-                channel = await member.create_dm()
-                await channel.send(f"Willkommen {member.mention}! Klicke auf den Knopf, um dich zu verifizieren.", view=VerificationView())
-                # ========== Kick command ==========
-        @bot.command
-        @commands.has_permissions(kick_members=True)
-        async def kick(ctx, member: discord.Member, *, reason="Kein Grund angegeben."):
+@commands.has_permissions(kick_members=True)
+async def kick(ctx, member: discord.Member, *, reason="Kein Grund angegeben."):
     if member == ctx.author:
         await ctx.send("❌ Du kannst dich nicht selbst kicken!")
         return
@@ -175,16 +142,9 @@ async def hilfe(ctx):
     except Exception as e:
         await ctx.send(f"❌ Fehler: {e}")
 
-
 # ===================== BOT START =====================
 @bot.event
 async def on_ready():
     print(f"✅ Bot ist online als {bot.user}")
-
-    try:
-        await bot.tree.sync()
-        print("✅ Slash-Commands synchronisiert!")
-    except Exception as e:
-        print(f"❌ Fehler bei der Synchronisation: {e}")
 
 bot.run(TOKEN)
