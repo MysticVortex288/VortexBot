@@ -92,7 +92,26 @@ async def on_member_join(member):
 async def on_member_remove(member):
     print(f"{member} hat den Server verlassen.")
     await member.guild.system_channel.send(f"{member.mention} hat den Server verlassen. 😢")
-
+    # Befehl für den Invite tracker damit er dies nur in einem kanal ausgibt (prefix)
+    @bot.command()
+    async def invite_tracker(ctx):
+        await ctx.send(f"Invite-Tracker ist aktiv! :tickets:\n")
+        # Ein Ticket Command damit in einem kanal so eine Nachricht schickt z.B Du brauchst Hilfe dann klicke hier und dann ist da ein create Ticket knopf (prefix)
+        @bot.command()
+        async def ticket(ctx):
+            await ctx.send(f"Du brauchst Hilfe? Klicke hier, um ein Ticket zu erstellen! :tickets.:\n"
+                           "Wenn du ein Ticket öffnest, wird ein privater Kanal für dich und das Support-Team erstellt.\n")
+           # ticket button erstellen
+           ticket_button = discord.ui.Button(label="Ticket erstellen", style=discord.ButtonStyle.primary)
+        async def ticket_callback(interaction: discord.Interaction):
+            guild = interaction.guild
+            channel = await guild.create_text_channel(f"ticket-{interaction.user.name}", category=None)
+            await channel.set_permissions(interaction.user, read_messages=True, send_messages=True)
+            await channel.set_permissions(guild.default_role, read_messages=False)
+            await channel.send(f"{interaction.user.mention}, dein Ticket wurde erstellt!")
+            await interaction.response.send_message(f"Dein Ticket wurde erstellt: {channel.mention}", ephemeral=True)""
+            "ticket_button.callback = ticket_callback"
+             
 # Event, wenn der Bot bereit ist
 @bot.event
 async def on_ready():
