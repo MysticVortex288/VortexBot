@@ -142,6 +142,17 @@ async def kick(ctx, member: discord.Member, *, reason="Kein Grund angegeben."):
     except Exception as e:
         await ctx.send(f"❌ Fehler: {e}")
 
+        # ===================== COUNTING GAME =====================
+        # countingsetup (Kanal) countingstop
+        @bot.command()
+        async def countingsetup(ctx, channel: discord.TextChannel):
+            await ctx.send(f":white_check_mark: Counting-Channel wurde auf {channel.mention} gesetzt!")
+            await channel.send("Counting-Channel wurde erstellt! :tada:")
+            await channel.send("Zähle mit mir! :1234:")
+            await channel.send("Der Zähler beginnt bei 1! :one:")
+            await channel.send("Wenn du einen Fehler machst, wird der Zähler zurückgesetzt! :warning:")
+            await channel.send("Viel Spaß beim Zählen! :smiley:")
+
 # ===================== HELP COMMAND =====================
 @bot.command()
 async def hilfe(ctx):
@@ -154,6 +165,10 @@ async def hilfe(ctx):
     embed.add_field(name="`!online`", value="Zeigt an, dass der Bot online ist.", inline=True)
     embed.add_field(name="`!setupinvite`", value="Erstellt einen Invite-Link für den Bot.", inline=True)
     embed.add_field(name="`!invite_tracker`", value="Aktiviert den Invite-Tracker.", inline=True)
+    embed = discord.Embed(title=":1234 Counting Game", description="Hier sind die verfügbaren Befehle:", color=discord.Color.blue())
+    embed.add_field(name="`!countingsetup @channel`", value="Setzt den Counting-Channel.", inline=True)
+    embed.add_field(name="`!countingstop`", value="Stoppt das Counting.", inline=True)
+    
     
     embed.add_field(name="🎟️ **Ticketsystem**", value="Unterstützung per Ticket.", inline=False)
     embed.add_field(name="`!ticket`", value="Erstellt ein Support-Ticket.", inline=True)
