@@ -25,7 +25,17 @@ intents.message_content = True
 # Initialisiere den Bot
 bot = commands.Bot(command_prefix=PREFIX, intents=intents)
 
-# Timeout-Befehl für Minuten
+# Timeout-Befehl für Minuten (Prefix)
+@bot.command()
+async def timeout(ctx, member: discord.Member, minutes: int):
+    try:
+        until = discord.utils.utcnow() + timedelta(minutes=minutes)  # Richtige Zeitzone!
+        await member.timeout(until, reason="Timeout command")
+        await ctx.send(f"{member.mention} wurde für {minutes} Minuten getimed out.")
+    except Exception as e:
+        await ctx.send(f"Fehler: {e}")
+
+# Timeout-Befehl für Minuten (Slash)
 @bot.tree.command(name="timeout", description="Set a timeout for a member")
 async def timeout_slash(interaction: discord.Interaction, member: discord.Member, minutes: int):
     try:
@@ -35,7 +45,16 @@ async def timeout_slash(interaction: discord.Interaction, member: discord.Member
     except Exception as e:
         await interaction.response.send_message(f"Fehler: {e}")
 
-# Untimeout-Befehl (Enttimeouten eines Spielers) für Slash
+# Untimeout-Befehl (Prefix)
+@bot.command()
+async def untimeout(ctx, member: discord.Member):
+    try:
+        await member.timeout(None, reason="Untimeout command")
+        await ctx.send(f"{member.mention} wurde enttimed out.")
+    except Exception as e:
+        await ctx.send(f"Fehler: {e}")
+
+# Untimeout-Befehl (Slash)
 @bot.tree.command(name="untimeout", description="Remove the timeout from a member")
 async def untimeout_slash(interaction: discord.Interaction, member: discord.Member):
     try:
@@ -44,23 +63,35 @@ async def untimeout_slash(interaction: discord.Interaction, member: discord.Memb
     except Exception as e:
         await interaction.response.send_message(f"Fehler: {e}")
 
-# Online-Befehl für Slash
+# Online-Befehl (Prefix)
+@bot.command()
+async def online(ctx):
+    await ctx.send("✨ **Ich bin jetzt online!** ✨\n"
+        "Bereit, dir zu helfen – was kann ich für dich tun? 🤔")
+
+# Online-Befehl (Slash)
 @bot.tree.command(name="online", description="Check if the bot is online.")
 async def online_slash(interaction: discord.Interaction):
     await interaction.response.send_message("✨ **Ich bin jetzt online!** ✨\n"
         "Bereit, dir zu helfen – was kann ich für dich tun? 🤔")
 
-# Setup Invite-Befehl
+# Setup Invite-Befehl (Prefix)
 @bot.command()
 async def setupinvite(ctx):
     invite_link = discord.utils.oauth_url(bot.user.id, permissions=discord.Permissions(permissions=8))
     await ctx.send(f"Hier ist der Invite-Link für diesen Bot: {invite_link}\nLade den Bot zu deinem Server ein! 🚀")
-    #ein Invite tracker damit man sieht wer gejoint ist und geleavt ist soll mit prefix funktionieren
-    @bot.event
-    async def on_member_join(member):
-        print(f"{member} ist dem Server beigetreten.")
-        await ctx.send(f"{member.mention} ist dem Server beigetreten!:EmojiName:tada")
-        
+
+# Invite-Tracker: Wenn ein Mitglied dem Server beitritt (Prefix)
+@bot.event
+async def on_member_join(member):
+    print(f"{member} ist dem Server beigetreten.")
+    await member.guild.system_channel.send(f"{member.mention} ist dem Server beigetreten! 🎉")
+
+# Invite-Tracker: Wenn ein Mitglied den Server verlässt (Prefix)
+@bot.event
+async def on_member_remove(member):
+    print(f"{member} hat den Server verlassen.")
+    await member.guild.system_channel.send(f"{member.mention} hat den Server verlassen. 😢")
 
 # Event, wenn der Bot bereit ist
 @bot.event
