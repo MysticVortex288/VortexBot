@@ -178,11 +178,14 @@ async def on_message(message):
                 last_user = message.author
                 await message.add_reaction("✅")  # Häkchen für korrekte Zahl
             else:
-                current_count = 1  # Setze den Zähler zurück, wenn ein Fehler gemacht wird
+                # Setze den Zähler zurück, wenn ein Fehler gemacht wird
+                current_count = 1
+                last_user = None  # Reset für den Benutzer, der zuletzt gezählt hat
                 await message.add_reaction("❌")  # Kreuz für falsche Zahl oder hintereinander zählen
+                await message.channel.send(f"❌ **Falsche Zahl oder hintereinander gezählt!** Der Zähler wird zurückgesetzt. :warning: Der Zähler startet wieder bei 1!")
         except ValueError:
             # Wenn die Nachricht keine Zahl ist
-            await message.channel.send("❌ Bitte gib nur eine Zahl ein!")
+            await message.channel.send("❌ Bitte gib nur eine Zahl ein! :warning:")
 
     # Verarbeite andere Nachrichten
     await bot.process_commands(message)
@@ -194,6 +197,7 @@ async def countingstop(ctx):
     current_count = 1
     last_user = None
     await ctx.send("🛑 Das Zählen wurde gestoppt!")
+
 
 # ===================== HELP COMMAND =====================
 @bot.command()
