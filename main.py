@@ -165,10 +165,10 @@ async def hilfe(ctx):
     embed.add_field(name="`!online`", value="Zeigt an, dass der Bot online ist.", inline=True)
     embed.add_field(name="`!setupinvite`", value="Erstellt einen Invite-Link für den Bot.", inline=True)
     embed.add_field(name="`!invite_tracker`", value="Aktiviert den Invite-Tracker.", inline=True)
-    embed = discord.Embed(title=":1234 Counting Game", description="Hier sind die verfügbaren Befehle:", color=discord.Color.blue())
+    embed.add_field(name="🔹 **Counting Befehle**", value="Diese Befehle kann jeder nutzen.", inline=False)
     embed.add_field(name="`!countingsetup @channel`", value="Setzt den Counting-Channel.", inline=True)
     embed.add_field(name="`!countingstop`", value="Stoppt das Counting.", inline=True)
-    
+
     
     embed.add_field(name="🎟️ **Ticketsystem**", value="Unterstützung per Ticket.", inline=False)
     embed.add_field(name="`!ticket`", value="Erstellt ein Support-Ticket.", inline=True)
