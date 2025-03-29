@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 import os
-from datetime import timedelta  # datetime entfernt, da wir discord.utils.utcnow() nutzen
+from datetime import timedelta
 
 # Lade Umgebungsvariablen aus der .env-Datei
 load_dotenv()
@@ -26,28 +26,28 @@ intents.message_content = True
 bot = commands.Bot(command_prefix=PREFIX, intents=intents)
 
 # Timeout-Befehl für Minuten
-@bot.command()
-async def timeout(ctx, member: discord.Member, minutes: int):
+@bot.tree.command(name="timeout", description="Set a timeout for a member")
+async def timeout_slash(interaction: discord.Interaction, member: discord.Member, minutes: int):
     try:
         until = discord.utils.utcnow() + timedelta(minutes=minutes)  # Richtige Zeitzone!
         await member.timeout(until, reason="Timeout command")
-        await ctx.send(f"{member.mention} wurde für {minutes} Minuten getimed out.")
+        await interaction.response.send_message(f"{member.mention} wurde für {minutes} Minuten getimed out.")
     except Exception as e:
-        await ctx.send(f"Fehler: {e}")
+        await interaction.response.send_message(f"Fehler: {e}")
 
-# Untimeout-Befehl (Enttimeouten eines Spielers)
-@bot.command()
-async def untimeout(ctx, member: discord.Member):
+# Untimeout-Befehl (Enttimeouten eines Spielers) für Slash
+@bot.tree.command(name="untimeout", description="Remove the timeout from a member")
+async def untimeout_slash(interaction: discord.Interaction, member: discord.Member):
     try:
         await member.timeout(None, reason="Untimeout command")
-        await ctx.send(f"{member.mention} wurde enttimed out.")
+        await interaction.response.send_message(f"{member.mention} wurde enttimed out.")
     except Exception as e:
-        await ctx.send(f"Fehler: {e}")
+        await interaction.response.send_message(f"Fehler: {e}")
 
-# Online-Befehl
-@bot.command()
-async def online(ctx):
-    await ctx.send("✨ **Ich bin jetzt online!** ✨\n"
+# Online-Befehl für Slash
+@bot.tree.command(name="online", description="Check if the bot is online.")
+async def online_slash(interaction: discord.Interaction):
+    await interaction.response.send_message("✨ **Ich bin jetzt online!** ✨\n"
         "Bereit, dir zu helfen – was kann ich für dich tun? 🤔")
 
 # Setup Invite-Befehl
@@ -61,6 +61,11 @@ async def setupinvite(ctx):
 async def on_ready():
     print(f"Bot ist bereit als {bot.user}.")
     print("Bot ist jetzt online und bereit, Befehle entgegenzunehmen! 🚀")
+    try:
+        await bot.tree.sync()  # Synchronisiert die Slash-Befehle
+        print("Slash-Commands synchronisiert!")
+    except Exception as e:
+        print(f"Fehler bei der Synchronisation der Slash-Befehle: {e}")
 
 # Starte den Bot mit dem Token
 bot.run(TOKEN)
