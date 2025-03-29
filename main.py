@@ -146,6 +146,7 @@ async def kick(ctx, member: discord.Member, *, reason="Kein Grund angegeben."):
 # Zählerstand wird in einer globalen Variable gespeichert
 counting_channel = None
 current_count = 1
+last_user = None
 
 @bot.command()
 @commands.has_permissions(manage_channels=True)
@@ -160,7 +161,7 @@ async def setupcounting(ctx, channel: discord.TextChannel):
 
 @bot.event
 async def on_message(message):
-    global counting_channel, current_count
+    global counting_channel, current_count, last_user
 
     # Stelle sicher, dass der Bot nicht auf seine eigenen Nachrichten reagiert
     if message.author == bot.user:
@@ -171,12 +172,14 @@ async def on_message(message):
         try:
             # Überprüfe, ob die Nachricht eine Zahl ist und ob sie der aktuellen Zahl entspricht
             user_number = int(message.content)
-            if user_number == current_count:
+
+            if user_number == current_count and message.author != last_user:
                 current_count += 1
-                await message.channel.send(f"{message.author.mention} hat {user_number} korrekt gezählt! Die nächste Zahl ist {current_count}.")
+                last_user = message.author
+                await message.add_reaction("✅")  # Häkchen für korrekte Zahl
             else:
                 current_count = 1  # Setze den Zähler zurück, wenn ein Fehler gemacht wird
-                await message.channel.send(f"❌ Fehler! Die Zahl war falsch. Der Zähler wird zurückgesetzt. Die Zahl beginnt wieder bei 1.")
+                await message.add_reaction("❌")  # Kreuz für falsche Zahl oder hintereinander zählen
         except ValueError:
             # Wenn die Nachricht keine Zahl ist
             await message.channel.send("❌ Bitte gib nur eine Zahl ein!")
@@ -186,9 +189,10 @@ async def on_message(message):
 
 @bot.command()
 async def countingstop(ctx):
-    global counting_channel, current_count
+    global counting_channel, current_count, last_user
     counting_channel = None
     current_count = 1
+    last_user = None
     await ctx.send("🛑 Das Zählen wurde gestoppt!")
 
 # ===================== HELP COMMAND =====================
@@ -207,10 +211,7 @@ async def hilfe(ctx):
     embed.add_field(name="`!setupcounting @channel`", value="Setzt den Counting-Channel.", inline=True)
     embed.add_field(name="`!countingstop`", value="Stoppt das Counting.", inline=True)
     embed.add_field(name="🎟️ **Ticketsystem**", value="Unterstützung per Ticket.", inline=False)
-    embed.add_field(name="`!ticket`", value="Erstellt ein Support-Ticket.", inline=True)
-    embed.set_footer(text="⚡ Mehr Funktionen folgen bald!")
-    await ctx.send(embed=embed)
-
+    embed.add_field(name="`!ticket`", value="Erstellt ein Ticket.", inline=True)
 # ===================== BOT START =====================
 @bot.event
 async def on_ready():
