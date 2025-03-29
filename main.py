@@ -1,7 +1,8 @@
 import discord
 from discord.ext import commands
-import os
 from dotenv import load_dotenv
+import os
+from datetime import timedelta
 
 # Lade Umgebungsvariablen aus der .env-Datei
 load_dotenv()
@@ -12,40 +13,46 @@ TOKEN = os.getenv('TOKEN')
 # Überprüfen, ob der Token korrekt geladen wurde
 if TOKEN is None:
     print("Fehler: Der Token wurde nicht geladen!")
-else:
-    print(f"TOKEN: {TOKEN}")  # Zeigt den Token zur Überprüfung an, sollte aber im echten Einsatz entfernt werden.
 
 # Prefix für die Befehle
 PREFIX = '!'
 
-# Erstelle die Intents für den Bot (Aktivierung der Privileged Intents)
+# Erstelle die Intents für den Bot
 intents = discord.Intents.default()
-intents.members = True  # Aktiviert die Mitglieder-Intents
-intents.message_content = True  # Aktiviert den Nachrichteninhalt-Intent
+intents.members = True  
+intents.message_content = True  
 
-# Initialisiere den Bot mit dem Prefix und den Intents
+# Initialisiere den Bot
 bot = commands.Bot(command_prefix=PREFIX, intents=intents)
 
-# Timeout-Befehl für Prefix
+# Timeout-Befehl für Minuten
 @bot.command()
-async def timeout(ctx, member: discord.Member, seconds: int):
+async def timeout(ctx, member: discord.Member, minutes: int):
     try:
-        await member.timeout(discord.utils.utcnow() + discord.timedelta(seconds=seconds), reason="Timeout command")
-        await ctx.send(f"{member.mention} wurde für {seconds} Sekunden getimed out.")
+        until = discord.utils.datetime.utcnow() + timedelta(minutes=minutes)
+        await member.timeout(until, reason="Timeout command")
+        await ctx.send(f"{member.mention} wurde für {minutes} Minuten getimed out.")
     except Exception as e:
         await ctx.send(f"Fehler: {e}")
+        # Untimeout-Befehl soll mit preifix funktionieren
+        @bot.command()
+        async def untimeout(ctx, member: discord.Member):
+            try:
+                await member.timeout(None, reason="Untimeout command")
+                await ctx.send(f"{member.mention} wurde enttimed out.")
+            except Exception as e:
+                await ctx.send(f"Fehler: {e}")
 
-# Online-Befehl für Prefix
+# Online-Befehl
 @bot.command()
 async def online(ctx):
     await ctx.send("✨ **Ich bin jetzt online!** ✨\n"
         "Bereit, dir zu helfen – was kann ich für dich tun? 🤔")
 
-# Setup Invite-Befehl für Prefix
+# Setup Invite-Befehl
 @bot.command()
 async def setupinvite(ctx):
-    # Hier wird der Invite-Link generiert
-    invite_link = discord.utils.oauth_url(bot.user.id)
+    invite_link = discord.utils.oauth_url(bot.user.id, permissions=discord.Permissions(permissions=8))
     await ctx.send(f"Hier ist der Invite-Link für diesen Bot: {invite_link}\nLade den Bot zu deinem Server ein! 🚀")
 
 # Event, wenn der Bot bereit ist
