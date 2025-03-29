@@ -126,7 +126,19 @@ class DeleteTicketButton(discord.ui.Button):
 @bot.command()
 async def ticket(ctx):
     await ctx.send("🎟️ **Brauchst du Hilfe? Klicke auf den Button, um ein Ticket zu erstellen!**", view=TicketView())
-
+# ====================== HELP COMMAND =====================
+# ein Help befehl damit man alle commands sieht
+@bot.command()
+async def help(ctx):
+    embed = discord.Embed(title="Hilfe", description="Hier sind die verfügbaren Befehle:", color=discord.Color.blue())
+    embed.add_field(name="!timeout @User Minuten", value="Setzt einen Timeout für den angegebenen Benutzer.", inline=False)
+    embed.add_field(name="!untimeout @User", value="Hebt den Timeout für den angegebenen Benutzer auf.", inline=False)
+    embed.add_field(name="!online", value="Zeigt an, dass der Bot online ist.", inline=False)
+    embed.add_field(name="!setupinvite", value="Erstellt einen Invite-Link für den Bot.", inline=False)
+    embed.add_field(name="!invite_tracker", value="Aktiviert den Invite-Tracker.", inline=False)
+    embed.add_field(name="!ticket", value="Erstellt ein Ticket für den Benutzer.", inline=False)
+    embed.set_footer(text="Weiter Befehle werden bald hinzugefügt!")
+    await ctx.send(embed=embed)
 # ===================== BOT START =====================
 @bot.event
 async def on_ready():
