@@ -55,6 +55,12 @@ async def online_slash(interaction: discord.Interaction):
 async def setupinvite(ctx):
     invite_link = discord.utils.oauth_url(bot.user.id, permissions=discord.Permissions(permissions=8))
     await ctx.send(f"Hier ist der Invite-Link für diesen Bot: {invite_link}\nLade den Bot zu deinem Server ein! 🚀")
+    #ein Invite tracker damit man sieht wer gejoint ist und geleavt ist soll mit prefix funktionieren
+    @bot.event
+    async def on_member_join(member):
+        print(f"{member} ist dem Server beigetreten.")
+        await ctx.send(f"{member.mention} ist dem Server beigetreten!:EmojiName:tada")
+        
 
 # Event, wenn der Bot bereit ist
 @bot.event
