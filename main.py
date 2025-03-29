@@ -160,9 +160,9 @@ async def hilfe(ctx):
                 channel = await member.create_dm()
                 await channel.send(f"Willkommen {member.mention}! Klicke auf den Knopf, um dich zu verifizieren.", view=VerificationView())
                 # ========== Kick command ==========
-        @bot.command()
-@commands.has_permissions(kick_members=True)
-async def kick(ctx, member: discord.Member, *, reason="Kein Grund angegeben."):
+        @bot.command
+        @commands.has_permissions(kick_members=True)
+        async def kick(ctx, member: discord.Member, *, reason="Kein Grund angegeben."):
     if member == ctx.author:
         await ctx.send("❌ Du kannst dich nicht selbst kicken!")
         return
@@ -174,6 +174,7 @@ async def kick(ctx, member: discord.Member, *, reason="Kein Grund angegeben."):
         await ctx.send("❌ Ich habe nicht die Berechtigung, diesen Benutzer zu kicken!")
     except Exception as e:
         await ctx.send(f"❌ Fehler: {e}")
+
 
 # ===================== BOT START =====================
 @bot.event
