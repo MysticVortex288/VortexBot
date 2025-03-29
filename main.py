@@ -142,16 +142,54 @@ async def kick(ctx, member: discord.Member, *, reason="Kein Grund angegeben."):
     except Exception as e:
         await ctx.send(f"❌ Fehler: {e}")
 
-        # ===================== COUNTING GAME =====================
-        # countingsetup (Kanal) countingstop
-        @bot.command()
-        async def countingsetup(ctx, channel: discord.TextChannel):
-            await ctx.send(f":white_check_mark: Counting-Channel wurde auf {channel.mention} gesetzt!")
-            await channel.send("Counting-Channel wurde erstellt! :tada:")
-            await channel.send("Zähle mit mir! :1234:")
-            await channel.send("Der Zähler beginnt bei 1! :one:")
-            await channel.send("Wenn du einen Fehler machst, wird der Zähler zurückgesetzt! :warning:")
-            await channel.send("Viel Spaß beim Zählen! :smiley:")
+# ===================== COUNTING GAME =====================
+# Zählerstand wird in einer globalen Variable gespeichert
+counting_channel = None
+current_count = 1
+
+@bot.command()
+@commands.has_permissions(manage_channels=True)
+async def setupcounting(ctx, channel: discord.TextChannel):
+    global counting_channel
+    counting_channel = channel
+    await ctx.send(f"✅ Counting-Channel wurde auf {channel.mention} gesetzt!")
+    await channel.send("Zähle mit mir! :1234:")
+    await channel.send("Der Zähler beginnt bei 1! :one:")
+    await channel.send("Wenn du einen Fehler machst, wird der Zähler zurückgesetzt! :warning:")
+    await channel.send("Viel Spaß beim Zählen! :smiley:")
+
+@bot.event
+async def on_message(message):
+    global counting_channel, current_count
+
+    # Stelle sicher, dass der Bot nicht auf seine eigenen Nachrichten reagiert
+    if message.author == bot.user:
+        return
+
+    # Wenn es eine Nachricht im Zählkanal ist
+    if counting_channel and message.channel == counting_channel:
+        try:
+            # Überprüfe, ob die Nachricht eine Zahl ist und ob sie der aktuellen Zahl entspricht
+            user_number = int(message.content)
+            if user_number == current_count:
+                current_count += 1
+                await message.channel.send(f"{message.author.mention} hat {user_number} korrekt gezählt! Die nächste Zahl ist {current_count}.")
+            else:
+                current_count = 1  # Setze den Zähler zurück, wenn ein Fehler gemacht wird
+                await message.channel.send(f"❌ Fehler! Die Zahl war falsch. Der Zähler wird zurückgesetzt. Die Zahl beginnt wieder bei 1.")
+        except ValueError:
+            # Wenn die Nachricht keine Zahl ist
+            await message.channel.send("❌ Bitte gib nur eine Zahl ein!")
+
+    # Verarbeite andere Nachrichten
+    await bot.process_commands(message)
+
+@bot.command()
+async def countingstop(ctx):
+    global counting_channel, current_count
+    counting_channel = None
+    current_count = 1
+    await ctx.send("🛑 Das Zählen wurde gestoppt!")
 
 # ===================== HELP COMMAND =====================
 @bot.command()
@@ -166,13 +204,10 @@ async def hilfe(ctx):
     embed.add_field(name="`!setupinvite`", value="Erstellt einen Invite-Link für den Bot.", inline=True)
     embed.add_field(name="`!invite_tracker`", value="Aktiviert den Invite-Tracker.", inline=True)
     embed.add_field(name="🔹 **Counting Befehle**", value="Diese Befehle kann jeder nutzen.", inline=False)
-    embed.add_field(name="`!countingsetup @channel`", value="Setzt den Counting-Channel.", inline=True)
+    embed.add_field(name="`!setupcounting @channel`", value="Setzt den Counting-Channel.", inline=True)
     embed.add_field(name="`!countingstop`", value="Stoppt das Counting.", inline=True)
-
-    
     embed.add_field(name="🎟️ **Ticketsystem**", value="Unterstützung per Ticket.", inline=False)
     embed.add_field(name="`!ticket`", value="Erstellt ein Support-Ticket.", inline=True)
-    
     embed.set_footer(text="⚡ Mehr Funktionen folgen bald!")
     await ctx.send(embed=embed)
 
