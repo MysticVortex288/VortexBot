@@ -257,12 +257,10 @@ async def countingstop(ctx):
     # Wenn jemand jemanden pingt und die Nachricht löscht sagt der Bot danach was drauf steht
     @bot.event
     async def on_message_delete(message):
-     if message.mentions:
-        for user in message.mentions:
-            if user == bot.user:
-                return
-        await message.channel.send(f":ghost: {message.author.mention} hat {user.mention} gepingt und die Nachricht gelöscht!")
-        await message.channel.send(f"**Nachricht:** {message.content}")
+      if message.mentions and not message.author.bot:
+        mentions = ", ".join(user.mention for user in message.mentions)
+        await message.channel.send(f":ghost: {message.author.mention} hat {mentions} gepingt und die Nachricht gelöscht!\n**Gelöschte Nachricht:** {message.content}")
+
 
 
 # ===================== BOT START =====================
