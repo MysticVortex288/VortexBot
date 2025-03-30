@@ -281,6 +281,17 @@ async def daily(ctx):
     # Credits vergeben
     await ctx.send(f"💰 {ctx.author.mention}, du hast **1000 Credits** erhalten!")
     daily_users[user_id] = current_time
+    # Einen work Befehl wo man 100-300 Credits bekommt
+    @bot.command()
+    async def work(ctx):
+        credits = random.randint(100, 150, 200, 250, 300)
+        await ctx.send(f":briefcase: {ctx.author.mention}, du hast **{credits} Credits** verdient!")
+        # Einen bal Befehl damit man seinen Credit stand sieht
+        @bot.command()
+        async def bal(ctx):
+            credits = daily_users.get(ctx.author.id, 0)
+            await ctx.send(f":credit_card: {ctx.author.mention}, du hast **{credits} Credits**!")
+            
 
 
 # ===================== BOT START =====================
