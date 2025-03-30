@@ -69,7 +69,7 @@ async def untimeout(ctx, member: discord.Member):
 @bot.command()
 async def online(ctx):
     await ctx.send("✨ **Ich bin online!** 🚀"
-    "Was kann ich für dich tun mein Lieber:wink;")
+    "Was kann ich für dich tun mein Lieber:wink:")
 
 # ===================== INVITE SYSTEM =====================
 @bot.command()
@@ -83,8 +83,10 @@ async def on_member_join(member):
     if member.guild.system_channel:
         await member.guild.system_channel.send(f"🎉 {member.mention} ist dem Server beigetreten!")
         # Nachricht senden wenn jemand den Server verlässt
-        await member.guild.system_channel.send(f":wave: {member.mention} hat den Server verlassen!")
-
+        @bot.event
+        async def on_member_remove(member):
+         if member.guild.system_channel:
+          await member.guild.system_channel.send(f":wave: {member.mention} hat den Server verlassen!")
     # Rolle "Unverified" holen oder erstellen
     role = discord.utils.get(member.guild.roles, name="Unverified")
     if not role:
@@ -255,13 +257,13 @@ async def countingstop(ctx):
     # Wenn jemand jemanden pingt und die Nachricht löscht sagt der Bot danach was drauf steht
     @bot.event
     async def on_message_delete(message):
-        if message.mentions:
-            for user in message.mentions:
-                if user == bot.user:
-                    return
-                await message.channel.send(f":ghost: {message.author.mention} hat {user.mention} gepingt und die Nachricht gelöscht!")
-                await message.channel.send(f"**Nachricht:** {message.content}")
-    
+     if message.mentions:
+        for user in message.mentions:
+            if user == bot.user:
+                return
+        await message.channel.send(f":ghost: {message.author.mention} hat {user.mention} gepingt und die Nachricht gelöscht!")
+        await message.channel.send(f"**Nachricht:** {message.content}")
+
 
 # ===================== BOT START =====================
 @bot.event
