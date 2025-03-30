@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 import os
 import asyncio
 from datetime import timedelta
+import datetime
+
 
 from requests import delete
 
@@ -258,22 +260,27 @@ async def countingstop(ctx):
     await ctx.send("🛑 Das Zählen wurde gestoppt!")
 # ===================== ECONOMY SYSTEM =====================
 # Ein daily Befehl, wo man jeden Tag nach 24 Stunden 1000 Credits bekommt
+daily_users = {}  # Speichert die letzten Daily-Nutzungen
+
 @bot.command()
 async def daily(ctx):
     user_id = ctx.author.id
     current_time = discord.utils.utcnow()
 
-    # Überprüfe, ob der Benutzer bereits einen Daily-Bonus erhalten hat
     if user_id in daily_users:
-        Last_claimed = daily_users[user_id]
-        time_difference = current_time - Last_claimed
+        last_claimed = daily_users[user_id]
+        time_difference = current_time - last_claimed
+
         if time_difference < timedelta(days=1):
             remaining_time = timedelta(days=1) - time_difference
-            hours, remainder = divmod(remaining_time.hours, 24)
-            minutes, seconds = divmod(remainder.seconds, 60)
-            await ctx.send(f":x: Du kannst deinen Daily-Bonus erst in {hours} Stunden, {minutes} Minuten und {seconds} Sekunden wieder beanspruchen.")
-            
+            hours, remainder = divmod(remaining_time.seconds, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            await ctx.send(f":x: Du kannst deinen Daily-Bonus erst in **{hours} Stunden, {minutes} Minuten und {seconds} Sekunden** wieder beanspruchen.")
+            return
 
+    # Credits vergeben
+    await ctx.send(f"💰 {ctx.author.mention}, du hast **1000 Credits** erhalten!")
+    daily_users[user_id] = current_time
 
 
 # ===================== BOT START =====================
