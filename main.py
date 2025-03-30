@@ -37,7 +37,7 @@ async def hilfe(ctx):
     embed.add_field(name="!setupinvite", value="Erstellt einen Invite-Link für den Bot.", inline=True)
     embed.add_field(name="!invite_tracker", value="Aktiviert den Invite-Tracker.", inline=True)
     embed.add_field(name="🔹 **Counting Befehle**", value="Diese Befehle kann jeder nutzen.", inline=False)
-    embed.add_field(name="!setupcounting @channel", value="Setzt den Counting-Channel.", inline=True)
+    embed.add_field(name="!setupcounting #channel", value="Setzt den Counting-Channel.", inline=True)
     embed.add_field(name="!countingstop", value="Stoppt das Counting.", inline=True)
     embed.add_field(name="🎟️ **Ticketsystem**", value="Unterstützung per Ticket.", inline=False)
     embed.add_field(name="!ticket", value="Erstellt ein Ticket.", inline=True)
@@ -69,7 +69,7 @@ async def untimeout(ctx, member: discord.Member):
 @bot.command()
 async def online(ctx):
     await ctx.send("✨ **Ich bin online!** 🚀"
-    "Was kann ich für dich tun mein Lieber")
+    "Was kann ich für dich tun mein Lieber:wink;")
 
 # ===================== INVITE SYSTEM =====================
 @bot.command()
@@ -252,13 +252,15 @@ async def countingstop(ctx):
     last_user = None
     await ctx.send("🛑 Das Zählen wurde gestoppt!")
     #====================== GHOST PING========================
+    # Wenn jemand jemanden pingt und die Nachricht löscht sagt der Bot danach was drauf steht
     @bot.event
-    async def on_message_edit(before, after):
-        if before.content != after.content:
-            await after.channel.send(f":ghost: {after.author.mention} hat eine Nachricht bearbeitet, die gelöscht wurde!")
-            await after.delete()
-            await after.channel.send(f"Die Nachricht war: {before.content}")
-            await asyncio.sleep(5)
+    async def on_message_delete(message):
+        if message.mentions:
+            for user in message.mentions:
+                if user == bot.user:
+                    return
+                await message.channel.send(f":ghost: {message.author.mention} hat {user.mention} gepingt und die Nachricht gelöscht!")
+                await message.channel.send(f"**Nachricht:** {message.content}")
     
 
 # ===================== BOT START =====================
