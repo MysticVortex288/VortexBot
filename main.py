@@ -1,3 +1,4 @@
+from math import remainder
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
@@ -41,6 +42,8 @@ async def hilfe(ctx):
     embed.add_field(name="!countingstop", value="Stoppt das Counting.", inline=True)
     embed.add_field(name="🎟️ **Ticketsystem**", value="Unterstützung per Ticket.", inline=False)
     embed.add_field(name="!ticket", value="Erstellt ein Ticket.", inline=True)
+    embed.add_field(name="🔹 **Economy-Befehle**", value="Diese Befehle sind für Credits da.", inline=False)
+    embed.add_field(name="!daily", value="Gibt dir jeden Tag 1000 Credits.", inline=True)
 
     # Hier fehlt das Senden des Embeds
     await ctx.send(embed=embed)
@@ -253,16 +256,23 @@ async def countingstop(ctx):
     current_count = 1
     last_user = None
     await ctx.send("🛑 Das Zählen wurde gestoppt!")
-    #====================== GHOST PING========================
-    # Wenn jemand jemanden pingt und die Nachricht löscht sagt der Bot danach was drauf steht
-    @bot.event
-    async def on_message_delete(message):
-      if message.mentions and not message.author.bot:
-        mentions = ", ".join(user.mention for user in message.mentions)
-        await message.channel.send(f":ghost: {message.author.mention} hat {mentions} gepingt und die Nachricht gelöscht!\n**Gelöschte Nachricht:** {message.content}")
-        @bot.event
-        async def on_message_delete(message):
-          print("Eine Nachricht wurde gelöscht:", message.content)  # Debug-Ausgabe
+# ===================== ECONOMY SYSTEM =====================
+# Ein daily Befehl, wo man jeden Tag nach 24 Stunden 1000 Credits bekommt
+@bot.command()
+async def daily(ctx):
+    user_id = ctx.author.id
+    current_time = discord.utils.utcnow()
+
+    # Überprüfe, ob der Benutzer bereits einen Daily-Bonus erhalten hat
+    if user_id in daily_users:
+        Last_claimed = daily_users[user_id]
+        time_difference = current_time - Last_claimed
+        if time_difference < timedelta(days=1):
+            remaining_time = timedelta(days=1) - time_difference
+            hours, remainder = divmod(remaining_time.hours, 24)
+            minutes, seconds = divmod(remainder.seconds, 60)
+            await ctx.send(f":x: Du kannst deinen Daily-Bonus erst in {hours} Stunden, {minutes} Minuten und {seconds} Sekunden wieder beanspruchen.")
+            
 
 
 
