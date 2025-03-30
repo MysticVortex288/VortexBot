@@ -260,6 +260,9 @@ async def countingstop(ctx):
       if message.mentions and not message.author.bot:
         mentions = ", ".join(user.mention for user in message.mentions)
         await message.channel.send(f":ghost: {message.author.mention} hat {mentions} gepingt und die Nachricht gelöscht!\n**Gelöschte Nachricht:** {message.content}")
+        @bot.event
+        async def on_message_delete(message):
+          print("Eine Nachricht wurde gelöscht:", message.content)  # Debug-Ausgabe
 
 
 
