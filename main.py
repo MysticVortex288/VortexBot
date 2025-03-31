@@ -374,50 +374,48 @@ def hand_value(hand):
         ace_count -= 1
     return value
 
-class BlackjackGame:
+class BlackjackGame(discord.ui.View):
     def __init__(self, ctx, bet, credits_data):
+        super().__init__(timeout=60)
         self.ctx = ctx
         self.bet = bet
         self.credits_data = credits_data
         self.player_hand = [draw_card(), draw_card()]
         self.dealer_hand = [draw_card(), draw_card()]
-        self.message = None
         self.finished = False
+
+        # Buttons hinzufügen
+        self.add_item(discord.ui.Button(label="Hit", style=discord.ButtonStyle.green, custom_id="hit"))
+        self.add_item(discord.ui.Button(label="Stand", style=discord.ButtonStyle.red, custom_id="stand"))
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        # Nur der Spieler darf interagieren
+        return interaction.user == self.ctx.author
 
     async def start_game(self):
         self.credits_data[self.ctx.author.id] -= self.bet
         embed = self.create_embed()
-        self.message = await self.ctx.send(embed=embed)
-        await self.message.add_reaction("✅")  # Hit
-        await self.message.add_reaction("❌")  # Stand
-        
-        def check(reaction, user):
-            return user == self.ctx.author and reaction.message.id == self.message.id and str(reaction.emoji) in ["✅", "❌"]
+        self.message = await self.ctx.send(embed=embed, view=self)
 
-        while not self.finished:
-            try:
-                reaction, user = await self.ctx.bot.wait_for("reaction_add", timeout=60, check=check)
-                if str(reaction.emoji) == "✅":
-                    await self.hit()
-                elif str(reaction.emoji) == "❌":
-                    await self.stand()
-            except asyncio.TimeoutError:
-                await self.ctx.send("⏳ Spiel abgebrochen, da keine Aktion erfolgte.")
-                break
+    async def button_callback(self, interaction: discord.Interaction):
+        if interaction.custom_id == "hit":
+            await self.hit(interaction)
+        elif interaction.custom_id == "stand":
+            await self.stand(interaction)
 
-    async def hit(self):
+    async def hit(self, interaction: discord.Interaction):
         self.player_hand.append(draw_card())
         if hand_value(self.player_hand) > 21:
-            await self.end_game("💥 Du hast über 21! **Verloren!** ❌")
+            await self.end_game(interaction, "💥 Du hast über 21! **Verloren!** ❌")
         else:
-            await self.update_message()
+            await self.update_message(interaction)
 
-    async def stand(self):
-        await self.ctx.send("🤵 Der Dealer zieht seine Karten...")
+    async def stand(self, interaction: discord.Interaction):
+        await interaction.response.send_message("🤵 Der Dealer zieht seine Karten...", ephemeral=True)
         await asyncio.sleep(2)
         while hand_value(self.dealer_hand) < 17:
             self.dealer_hand.append(draw_card())
-            await self.update_message()
+            await self.update_message(interaction)
             await asyncio.sleep(1)
 
         player_value = hand_value(self.player_hand)
@@ -426,27 +424,37 @@ class BlackjackGame:
         if dealer_value > 21 or player_value > dealer_value:
             winnings = self.bet * 2
             self.credits_data[self.ctx.author.id] += winnings
-            await self.end_game(f"🎉 **Gewonnen!** Du bekommst {winnings} Credits! 🏆")
+            await self.end_game(interaction, f"🎉 **Gewonnen!** Du bekommst {winnings} Credits! 🏆")
         elif player_value < dealer_value:
-            await self.end_game("❌ **Verloren!** Der Dealer hatte eine bessere Hand.")
+            await self.end_game(interaction, "❌ **Verloren!** Der Dealer hatte eine bessere Hand.")
         else:
             self.credits_data[self.ctx.author.id] += self.bet
-            await self.end_game("⚖️ **Unentschieden!** Dein Einsatz wurde zurückgegeben.")
+            await self.end_game(interaction, "⚖️ **Unentschieden!** Dein Einsatz wurde zurückgegeben.")
 
-    async def update_message(self):
+    async def update_message(self, interaction: discord.Interaction):
         embed = self.create_embed()
         await self.message.edit(embed=embed)
 
-    async def end_game(self, result):
+    async def end_game(self, interaction: discord.Interaction, result):
         self.finished = True
         embed = self.create_embed()
         embed.add_field(name="🎲 Ergebnis", value=result, inline=False)
         await self.message.edit(embed=embed)
+        self.clear_items()  # Buttons deaktivieren
+        await interaction.response.defer()
 
     def create_embed(self):
         embed = discord.Embed(title="♠️ Blackjack ♠️", color=discord.Color.green())
-        embed.add_field(name="🃏 Deine Karten", value=" ".join(CARD_EMOJIS[c] for c in self.player_hand), inline=False)
-        embed.add_field(name="🤵 Dealer Karten", value=" ".join(CARD_EMOJIS[c] for c in self.dealer_hand), inline=False)
+        embed.add_field(
+            name="🃏 Deine Karten",
+            value=f"{' '.join(CARD_EMOJIS[c] for c in self.player_hand)} (Gesamt: {hand_value(self.player_hand)})",
+            inline=False
+        )
+        embed.add_field(
+            name="🤵 Dealer Karten",
+            value=f"{' '.join(CARD_EMOJIS[c] for c in self.dealer_hand)} (Gesamt: {hand_value(self.dealer_hand)})",
+            inline=False
+        )
         return embed
 
 @bot.command()
@@ -455,7 +463,7 @@ async def blackjack(ctx, bet: int):
     if user_id not in credits_data or credits_data[user_id] < bet:
         await ctx.send(":x: Du hast nicht genug Credits!")
         return
-    
+
     game = BlackjackGame(ctx, bet, credits_data)
     await game.start_game()
 
