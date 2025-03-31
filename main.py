@@ -460,8 +460,8 @@ async def blackjack(ctx, bet: int):
     await game.start_game()
 
     #====================== DESIGNED NACHRICHT =====================
+     #Fügt "Designed by MysticVortex" nach jeder Nachricht hinzu
     async def send_message(ctx, content):
-     async def send_message(ctx, content):
       await ctx.send(f"{content}\n\n*Designed by MysticVortex*")
 
 
