@@ -48,6 +48,11 @@ async def hilfe(ctx):
     embed.add_field(name="!ticket", value="Erstellt ein Ticket.", inline=True)
     embed.add_field(name="🔹 **Economy-Befehle**", value="Diese Befehle sind für Credits da.", inline=False)
     embed.add_field(name="!daily", value="Gibt dir jeden Tag 1000 Credits.", inline=True)
+    embed.add_field(name="!work", value="Gibt dir alle 3 Stunden Credits.", inline=True)
+    embed.add_field(name="!bal", value="Zeigt dein Guthaben an.", inline=True)
+    embed.add_field(name="!pay @User Betrag", value="Überweist Credits an einen anderen Benutzer.", inline=True)
+    embed.add_field(name="!bal_user @User", value="Zeigt das Guthaben eines anderen Benutzers an.", inline=True)
+    
 
 
     # Hier fehlt das Senden des Embeds
@@ -321,6 +326,12 @@ async def bal(ctx):
     user_id = ctx.author.id
     credits = credits_data.get(user_id, 0)
     await ctx.send(f":credit_card: {ctx.author.mention}, du hast **{credits} Credits**!")
+    # Einen Befehl damit die Credits Stand von anderen sehen kann
+    @bot.command()
+    async def bal_user(ctx, member: discord.Member):
+        user_id = member.id
+        credits = credits_data.get(user_id, 0)
+        await ctx.send(f":credit_card: {member.mention}, hat **{credits} Credits**!")
 
 @bot.command()
 async def pay(ctx, member: discord.Member, amount: int):
