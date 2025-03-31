@@ -51,8 +51,10 @@ async def hilfe(ctx):
     embed.add_field(name="!work", value="Gibt dir alle 3 Stunden Credits.", inline=True)
     embed.add_field(name="!bal", value="Zeigt dein Guthaben an.", inline=True)
     embed.add_field(name="!pay @User Betrag", value="Überweist Credits an einen anderen Benutzer.", inline=True)
-    embed.add_field(name="!bal_user @User", value="Zeigt das Guthaben eines anderen Benutzers an.", inline=True)
-    
+    embed.add_field(name="!bal @User", value="Zeigt das Guthaben eines anderen Benutzers an.", inline=True)
+    embed.add_field(name="🔹 **Casino Befehle**", value="Spiele mit deinen Credits Casino.", inline=False)
+    embed.add_field(name="!blackjack (Betrag)", value="Spiele Blackjack mit deinen Credits.", inline=True)
+
 
 
     # Hier fehlt das Senden des Embeds
@@ -135,20 +137,27 @@ async def on_member_join(member):
 
 # ===================== TICKET SYSTEM =====================
 class TicketView(discord.ui.View):
-    def __init__(self):
+    def __init__(self, bot):
         super().__init__(timeout=None)
-        self.add_item(TicketButton())
+        self.bot = bot
+        self.add_item(TicketButton(bot))
 
 class TicketButton(discord.ui.Button):
-    def __init__(self):
+    def __init__(self, bot):
         super().__init__(label="🎟️ Ticket erstellen", style=discord.ButtonStyle.primary)
+        self.bot = bot
 
     async def callback(self, interaction: discord.Interaction):
         guild = interaction.guild
         category = discord.utils.get(guild.categories, name="Tickets")
         if not category:
             category = await guild.create_category("Tickets")
-        
+
+        existing_ticket = discord.utils.get(category.channels, name=f"ticket-{interaction.user.name}")
+        if existing_ticket:
+            await interaction.response.send_message(":x: Du hast bereits ein offenes Ticket!", ephemeral=True)
+            return
+
         channel = await guild.create_text_channel(f"ticket-{interaction.user.name}", category=category)
         await channel.set_permissions(interaction.user, read_messages=True, send_messages=True)
         await channel.set_permissions(guild.default_role, read_messages=False)
@@ -157,7 +166,7 @@ class TicketButton(discord.ui.Button):
             f"{interaction.user.mention}, dein Ticket wurde erstellt! ✅\nEin Support-Mitarbeiter wird sich bald melden.",
             view=CloseTicketView()
         )
-        
+
         await interaction.response.send_message(f"🎟️ Dein Ticket wurde erstellt: {channel.mention}", ephemeral=True)
 
 class CloseTicketView(discord.ui.View):
@@ -171,7 +180,7 @@ class CloseTicketButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         channel = interaction.channel
-        await channel.send("🔒 **Dieses Ticket wurde geschlossen.**", view=DeleteTicketView())
+        await channel.send("\ud83d\udd12 **Dieses Ticket wurde geschlossen.**", view=DeleteTicketView())
         await interaction.response.defer()
 
 class DeleteTicketView(discord.ui.View):
@@ -189,18 +198,11 @@ class DeleteTicketButton(discord.ui.Button):
         await interaction.response.defer()
         await asyncio.sleep(5)
         await channel.delete()
-        #Ticket Limit pro Benutzer nur 1 Ticket
-        # Hier kannst du die Logik hinzufügen, um zu überprüfen, ob der Benutzer bereits ein Ticket hat
-        @bot.event
-        async def on_button_click(interaction: discord.Interaction):
-            if interaction.user == ctx.author:
-                await interaction.response.send_message(":x: Du kannst nur ein Ticket gleichzeitig erstellen.", ephemeral=True)
 
-
-@bot.command()
 @commands.has_permissions(moderate_members=True)
+@commands.command()
 async def ticket(ctx):
-    await ctx.send("🎟️ **Klicke auf den Button, um ein Ticket zu erstellen!**", view=TicketView())
+    await ctx.send("🎟️ **Klicke auf den Button, um ein Ticket zu erstellen!**", view=TicketView(ctx.bot))
 
 # ===================== KICK COMMAND =====================
 @bot.command()
@@ -328,7 +330,7 @@ async def bal(ctx):
     await ctx.send(f":credit_card: {ctx.author.mention}, du hast **{credits} Credits**!")
     # Einen Befehl damit die Credits Stand von anderen sehen kann
     @bot.command()
-    async def bal_user(ctx, member: discord.Member):
+    async def bal(ctx, member: discord.Member):
         user_id = member.id
         credits = credits_data.get(user_id, 0)
         await ctx.send(f":credit_card: {member.mention}, hat **{credits} Credits**!")
@@ -350,11 +352,125 @@ async def pay(ctx, member: discord.Member, amount: int):
     credits_data[receiver_id] = credits_data.get(receiver_id, 0) + amount
     await ctx.send(f"💸 {ctx.author.mention} hat {amount} Credits an {member.mention} gesendet!")
 
+    # ================= CASINO BEFEHLE =====================
+    # Kartendeck für Blackjack
+CARD_VALUES = {
+    "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9, "10": 10,
+    "J": 10, "Q": 10, "K": 10, "A": 11  # Ass kann 1 oder 11 sein
+}
+CARD_EMOJIS = {  # Für schönere Darstellung
+    "2": "2️⃣", "3": "3️⃣", "4": "4️⃣", "5": "5️⃣", "6": "6️⃣", "7": "7️⃣", "8": "8️⃣", "9": "9️⃣", "10": "🔟",
+    "J": "🃏", "Q": "👸", "K": "🤴", "A": "🅰️"
+}
+
+def draw_card():
+    return random.choice(list(CARD_VALUES.keys()))
+
+def hand_value(hand):
+    value = sum(CARD_VALUES[card] for card in hand)
+    ace_count = hand.count("A")
+    while value > 21 and ace_count > 0:
+        value -= 10
+        ace_count -= 1
+    return value
+
+class BlackjackGame:
+    def __init__(self, ctx, bet, credits_data):
+        self.ctx = ctx
+        self.bet = bet
+        self.credits_data = credits_data
+        self.player_hand = [draw_card(), draw_card()]
+        self.dealer_hand = [draw_card(), draw_card()]
+        self.message = None
+        self.finished = False
+
+    async def start_game(self):
+        self.credits_data[self.ctx.author.id] -= self.bet
+        embed = self.create_embed()
+        self.message = await self.ctx.send(embed=embed)
+        await self.message.add_reaction("✅")  # Hit
+        await self.message.add_reaction("❌")  # Stand
+        
+        def check(reaction, user):
+            return user == self.ctx.author and reaction.message.id == self.message.id and str(reaction.emoji) in ["✅", "❌"]
+
+        while not self.finished:
+            try:
+                reaction, user = await self.ctx.bot.wait_for("reaction_add", timeout=60, check=check)
+                if str(reaction.emoji) == "✅":
+                    await self.hit()
+                elif str(reaction.emoji) == "❌":
+                    await self.stand()
+            except asyncio.TimeoutError:
+                await self.ctx.send("⏳ Spiel abgebrochen, da keine Aktion erfolgte.")
+                break
+
+    async def hit(self):
+        self.player_hand.append(draw_card())
+        if hand_value(self.player_hand) > 21:
+            await self.end_game("💥 Du hast über 21! **Verloren!** ❌")
+        else:
+            await self.update_message()
+
+    async def stand(self):
+        await self.ctx.send("🤵 Der Dealer zieht seine Karten...")
+        await asyncio.sleep(2)
+        while hand_value(self.dealer_hand) < 17:
+            self.dealer_hand.append(draw_card())
+            await self.update_message()
+            await asyncio.sleep(1)
+
+        player_value = hand_value(self.player_hand)
+        dealer_value = hand_value(self.dealer_hand)
+
+        if dealer_value > 21 or player_value > dealer_value:
+            winnings = self.bet * 2
+            self.credits_data[self.ctx.author.id] += winnings
+            await self.end_game(f"🎉 **Gewonnen!** Du bekommst {winnings} Credits! 🏆")
+        elif player_value < dealer_value:
+            await self.end_game("❌ **Verloren!** Der Dealer hatte eine bessere Hand.")
+        else:
+            self.credits_data[self.ctx.author.id] += self.bet
+            await self.end_game("⚖️ **Unentschieden!** Dein Einsatz wurde zurückgegeben.")
+
+    async def update_message(self):
+        embed = self.create_embed()
+        await self.message.edit(embed=embed)
+
+    async def end_game(self, result):
+        self.finished = True
+        embed = self.create_embed()
+        embed.add_field(name="🎲 Ergebnis", value=result, inline=False)
+        await self.message.edit(embed=embed)
+
+    def create_embed(self):
+        embed = discord.Embed(title="♠️ Blackjack ♠️", color=discord.Color.green())
+        embed.add_field(name="🃏 Deine Karten", value=" ".join(CARD_EMOJIS[c] for c in self.player_hand), inline=False)
+        embed.add_field(name="🤵 Dealer Karten", value=" ".join(CARD_EMOJIS[c] for c in self.dealer_hand), inline=False)
+        return embed
+
+@bot.command()
+async def blackjack(ctx, bet: int):
+    user_id = ctx.author.id
+    if user_id not in credits_data or credits_data[user_id] < bet:
+        await ctx.send(":x: Du hast nicht genug Credits!")
+        return
+    
+    game = BlackjackGame(ctx, bet, credits_data)
+    await game.start_game()
+
+    #====================== DESIGNED NACHRICHT =====================
+    async def send_message(ctx, content):
+     async def send_message(ctx, content):
+      await ctx.send(f"{content}\n\n*Designed by MysticVortex*")
+
+
+
 
 
 # ===================== BOT START =====================
-@bot.event
-async def on_ready():
-    print(f"✅ Bot ist online als {bot.user}")
+    @bot.event
+    async def on_ready():
+     print(f"✅ Bot ist online als {bot.user}")
 
 bot.run(TOKEN)
