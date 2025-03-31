@@ -1,4 +1,5 @@
 from math import remainder
+import random
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
@@ -8,6 +9,7 @@ from datetime import timedelta
 import datetime
 
 
+from flask import ctx
 from requests import delete
 
 # Lade Umgebungsvariablen aus der .env-Datei
@@ -46,6 +48,7 @@ async def hilfe(ctx):
     embed.add_field(name="!ticket", value="Erstellt ein Ticket.", inline=True)
     embed.add_field(name="🔹 **Economy-Befehle**", value="Diese Befehle sind für Credits da.", inline=False)
     embed.add_field(name="!daily", value="Gibt dir jeden Tag 1000 Credits.", inline=True)
+
 
     # Hier fehlt das Senden des Embeds
     await ctx.send(embed=embed)
@@ -181,6 +184,13 @@ class DeleteTicketButton(discord.ui.Button):
         await interaction.response.defer()
         await asyncio.sleep(5)
         await channel.delete()
+        #Ticket Limit pro Benutzer nur 1 Ticket
+        # Hier kannst du die Logik hinzufügen, um zu überprüfen, ob der Benutzer bereits ein Ticket hat
+        @bot.event
+        async def on_button_click(interaction: discord.Interaction):
+            if interaction.user == ctx.author:
+                await interaction.response.send_message(":x: Du kannst nur ein Ticket gleichzeitig erstellen.", ephemeral=True)
+
 
 @bot.command()
 @commands.has_permissions(moderate_members=True)
@@ -259,8 +269,10 @@ async def countingstop(ctx):
     last_user = None
     await ctx.send("🛑 Das Zählen wurde gestoppt!")
 # ===================== ECONOMY SYSTEM =====================
-# Ein daily Befehl, wo man jeden Tag nach 24 Stunden 1000 Credits bekommt
-daily_users = {}  # Speichert die letzten Daily-Nutzungen
+# Speichert die letzten Daily-Nutzungen
+credits_data = {}
+daily_users = {}
+work_users = {}
 
 @bot.command()
 async def daily(ctx):
@@ -279,19 +291,54 @@ async def daily(ctx):
             return
 
     # Credits vergeben
-    await ctx.send(f"💰 {ctx.author.mention}, du hast **1000 Credits** erhalten!")
+    credits_data[user_id] = credits_data.get(user_id, 0) + 1000
     daily_users[user_id] = current_time
-    # Einen work Befehl wo man 100-300 Credits bekommt
-    @bot.command()
-    async def work(ctx):
-        credits = random.randint(100, 150, 200, 250, 300)
-        await ctx.send(f":briefcase: {ctx.author.mention}, du hast **{credits} Credits** verdient!")
-        # Einen bal Befehl damit man seinen Credit stand sieht
-        @bot.command()
-        async def bal(ctx):
-            credits = daily_users.get(ctx.author.id, 0)
-            await ctx.send(f":credit_card: {ctx.author.mention}, du hast **{credits} Credits**!")
-            
+    await ctx.send(f"💰 {ctx.author.mention}, du hast **1000 Credits** erhalten!")
+
+@bot.command()
+async def work(ctx):
+    user_id = ctx.author.id
+    current_time = discord.utils.utcnow()
+
+    if user_id in work_users:
+        last_worked = work_users[user_id]
+        time_difference = current_time - last_worked
+
+        if time_difference < timedelta(hours=3):
+            remaining_time = timedelta(hours=3) - time_difference
+            hours, remainder = divmod(remaining_time.seconds, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            await ctx.send(f":x: Du kannst erst in **{hours} Stunden, {minutes} Minuten und {seconds} Sekunden** wieder arbeiten.")
+            return
+
+    credits = random.randint(100, 300)
+    credits_data[user_id] = credits_data.get(user_id, 0) + credits
+    work_users[user_id] = current_time
+    await ctx.send(f":briefcase: {ctx.author.mention}, du hast **{credits} Credits** verdient!")
+
+@bot.command()
+async def bal(ctx):
+    user_id = ctx.author.id
+    credits = credits_data.get(user_id, 0)
+    await ctx.send(f":credit_card: {ctx.author.mention}, du hast **{credits} Credits**!")
+
+@bot.command()
+async def pay(ctx, member: discord.Member, amount: int):
+    sender_id = ctx.author.id
+    receiver_id = member.id
+
+    if amount <= 0:
+        await ctx.send(":x: Der Betrag muss größer als 0 sein!")
+        return
+
+    if sender_id not in credits_data or credits_data[sender_id] < amount:
+        await ctx.send(":x: Du hast nicht genug Credits!")
+        return
+
+    credits_data[sender_id] -= amount
+    credits_data[receiver_id] = credits_data.get(receiver_id, 0) + amount
+    await ctx.send(f"💸 {ctx.author.mention} hat {amount} Credits an {member.mention} gesendet!")
+
 
 
 # ===================== BOT START =====================
