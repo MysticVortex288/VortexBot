@@ -1,5 +1,6 @@
 from math import remainder
 import random
+from tarfile import data_filter
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
@@ -385,32 +386,23 @@ class BlackjackGame(discord.ui.View):
         self.finished = False
 
         # Buttons hinzufügen
-        self.add_item(discord.ui.Button(label="Hit", style=discord.ButtonStyle.green, custom_id="hit"))
-        self.add_item(discord.ui.Button(label="Stand", style=discord.ButtonStyle.red, custom_id="stand"))
+        self.add_item(discord.ui.Button(label="Hit", style=discord.ButtonStyle.green, custom_id="hit", row=0))
+        self.add_item(discord.ui.Button(label="Stand", style=discord.ButtonStyle.red, custom_id="stand", row=0))
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         # Nur der Spieler darf interagieren
         return interaction.user == self.ctx.author
 
-    async def start_game(self):
-        self.credits_data[self.ctx.author.id] -= self.bet
-        embed = self.create_embed()
-        self.message = await self.ctx.send(embed=embed, view=self)
-
-    async def button_callback(self, interaction: discord.Interaction):
-        if interaction.custom_id == "hit":
-            await self.hit(interaction)
-        elif interaction.custom_id == "stand":
-            await self.stand(interaction)
-
-    async def hit(self, interaction: discord.Interaction):
+    @discord.ui.button(label="Hit", style=discord.ButtonStyle.green)
+    async def hit(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.player_hand.append(draw_card())
         if hand_value(self.player_hand) > 21:
             await self.end_game(interaction, "💥 Du hast über 21! **Verloren!** ❌")
         else:
             await self.update_message(interaction)
 
-    async def stand(self, interaction: discord.Interaction):
+    @discord.ui.button(label="Stand", style=discord.ButtonStyle.red)
+    async def stand(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_message("🤵 Der Dealer zieht seine Karten...", ephemeral=True)
         await asyncio.sleep(2)
         while hand_value(self.dealer_hand) < 17:
@@ -457,15 +449,11 @@ class BlackjackGame(discord.ui.View):
         )
         return embed
 
-@bot.command()
-async def blackjack(ctx, bet: int):
-    user_id = ctx.author.id
-    if user_id not in credits_data or credits_data[user_id] < bet:
-        await ctx.send(":x: Du hast nicht genug Credits!")
-        return
-
-    game = BlackjackGame(ctx, bet, credits_data)
-    await game.start_game()
+    async def start_game(self):
+        self.credits_data[self.ctx.author.id] -= self.bet
+        embed = self.create_embed()
+        self.message = await self.ctx.send(embed=embed, view=self)(data)
+        await game.start_game()
 
     #====================== DESIGNED NACHRICHT =====================
      #Fügt "Designed by MysticVortex" nach jeder Nachricht hinzu
