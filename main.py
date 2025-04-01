@@ -1,4 +1,5 @@
 from cProfile import label
+from email import message
 from math import remainder
 import random
 from tarfile import data_filter
@@ -14,6 +15,7 @@ import datetime
 
 from flask import ctx
 from requests import delete
+
 
 # Lade Umgebungsvariablen aus der .env-Datei
 load_dotenv()
@@ -469,46 +471,64 @@ async def blackjack(ctx, bet: int):
     await game.start_game()
     # Coinflip Spiel mit zwei knöpfen Kopf oder Zahl
     class CoinflipButton(discord.ui.Button):
-     def __init__(self, label):
-        super().__init__(label=label, style=discord.ButtonStyle.primary)
+     def __init__(self, ctx, bet):
+        super().__init__(label="🎲 Kopf oder Zahl", style=discord.ButtonStyle.primary)
+        self.ctx = ctx
+        self.bet = bet
 
     async def callback(self, interaction: discord.Interaction):
-        result = random.choice(["Kopf", "Zahl"])
-        if self.label == result:
-            await interaction.response.send_message(f"🎉 Du hast gewonnen! Das Ergebnis war **{result}**!")
-        else:
-            await interaction.response.send_message(f"❌ Du hast verloren. Das Ergebnis war **{result}**.")
+        outcome = random.choice(["Kopf", "Zahl"])
+        user_choice = "Kopf" if random.choice([True, False]) else "Zahl"
+        
+        # Determine the result of the coinflip
+        result_message = "❌ Du hast verloren!" if outcome != user_choice else f"🎉 Du hast {self.bet * 2} Credits gewonnen!"
 
+        # Update user's credits
+        if outcome == user_choice:
+            credits_data[self.ctx.author.id] += self.bet * 2
+        else:
+            credits_data[self.ctx.author.id] -= self.bet
+
+        # Send result
+        await interaction.response.send_message(f"Das Ergebnis ist: {outcome}. {result_message}", ephemeral=True)
+        
 class CoinflipView(discord.ui.View):
-    def __init__(self):
+    def __init__(self, ctx, bet):
         super().__init__(timeout=60)
-        self.add_item(CoinflipButton("Kopf"))
-        self.add_item(CoinflipButton("Zahl"))
+        self.ctx = ctx
+        self.add_item(CoinflipButton(ctx, bet))
 
 @bot.command()
 async def coinflip(ctx, bet: int):
     if ctx.author.id not in credits_data:
-        credits_data[ctx.author.id] = 100
+        credits_data[ctx.author.id] = 100  # Startguthaben
 
-    if bet > credits_data[ctx.author.id] or bet <= 0:
-        await ctx.send(":x: Ungültiger Einsatz! Stelle sicher, dass du genug Credits hast.")
+    if bet <= 0 or bet > credits_data[ctx.author.id]:
+        await ctx.send("❌ Ungültiger Einsatz! Stelle sicher, dass du genug Credits hast und der Einsatz größer als 0 ist.")
         return
 
-    embed = discord.Embed(title=":coin: Coinflip :coin:", description="Wähle Kopf oder Zahl!", color=discord.Color.blue())
-    embed.add_field(name="Kopf", value=":coin:", inline=True)
-    embed.add_field(name="Zahl", value=":coin:", inline=True)
+    await ctx.send(f"🎲 Du hast {bet} Credits auf Kopf oder Zahl gesetzt. Klicke auf den Button, um zu spielen!", view=CoinflipView(ctx, bet))
 
-    await ctx.send(embed=embed, view=CoinflipView())
 
-                    
-                    
-    #====================== DESIGNED NACHRICHT =====================
-    # Bei der Nachricht der der Bot schickt soll man unten stehen haben designed by "MysticVortex"
+    #======================ERROR HANDLER =====================
     @bot.event
     async def on_message(message):
-        if message.author == bot.user:
-            embed = discord.Embed(description="Designed by MysticVortex", color=discord.Color.blue())
-            await message.channel.send(embed=embed)
+    # Verhindere, dass der Bot auf eigene Nachrichten reagiert
+     if message.author == bot.user:
+        return
+
+    # Wenn die Nachricht mit "!" beginnt, aber kein Befehl ist
+    if message.content.startswith("!"):
+        try:
+            # Versuche, die Nachricht als Befehl zu verarbeiten
+            await bot.process_commands(message)
+        except commands.CommandNotFound:
+            # Wenn der Befehl nicht gefunden wird, eine Fehlermeldung senden
+            await message.channel.send("Fehler: Das ist kein gültiger Befehl.")
+
+@bot.command()
+async def ping(ctx):
+    await ctx.send("Pong!")
 
 
 
