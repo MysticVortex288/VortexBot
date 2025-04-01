@@ -459,10 +459,16 @@ async def blackjack(ctx, bet: int):
 
     game = BlackjackGame(ctx, bet)
     await game.start_game()
+
+
     #====================== DESIGNED NACHRICHT =====================
-     #Fügt "Designed by MysticVortex" nach jeder Nachricht hinzu
-    async def send_message(ctx, content):
-      await ctx.send(f"{content}\n\n*Designed by MysticVortex*")
+    # Bei der Nachricht der der Bot schickt soll man unten stehen haben designed by "MysticVortex"
+    @bot.event
+    async def on_message(message):
+        if message.author == bot.user:
+            embed = discord.Embed(description="Designed by MysticVortex", color=discord.Color.blue())
+            await message.channel.send(embed=embed)
+            
 
 
 
