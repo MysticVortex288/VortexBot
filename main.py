@@ -468,23 +468,37 @@ async def blackjack(ctx, bet: int):
     game = BlackjackGame(ctx, bet)
     await game.start_game()
     # Coinflip Spiel mit zwei knöpfen Kopf oder Zahl
-    @bot.command()
-    async def coinflip(ctx, bet: int):
-        if ctx.author.id not in credits_data:
-            credits_data[ctx.author.id] = 100
-            if bet > credits_data[ctx.author.id] or bet <= 0:
-                await ctx.send(":x: Ungültiger Einsatz! Stelle sicher, dass du genug Credits hast.")
-                return
-            embed = discord.Embed(title=":coin: Coinflip :coin:", description="Wähle Kopf oder Zahl!", color=discord.Color.blue())
-            embed.add_field(name="Kopf", value=":coin:", inline=True)
-            embed.add_field(name="Zahl", value=":coin:", inline=True)
-            await ctx.send(embed=embed)
-            #Button für Kopf und Zahl
-            class CoinflipView(discord.ui.View):
-                def __init__(self):
-                    super().__init__(timeout=60)
-                    self.add_item(CoinflipButton("Kopf"))
-                    self.add_item(CoinflipButton("Zahl"))
+    class CoinflipButton(discord.ui.Button):
+     def __init__(self, label):
+        super().__init__(label=label, style=discord.ButtonStyle.primary)
+
+    async def callback(self, interaction: discord.Interaction):
+        result = random.choice(["Kopf", "Zahl"])
+        if self.label == result:
+            await interaction.response.send_message(f"🎉 Du hast gewonnen! Das Ergebnis war **{result}**!")
+        else:
+            await interaction.response.send_message(f"❌ Du hast verloren. Das Ergebnis war **{result}**.")
+
+class CoinflipView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=60)
+        self.add_item(CoinflipButton("Kopf"))
+        self.add_item(CoinflipButton("Zahl"))
+
+@bot.command()
+async def coinflip(ctx, bet: int):
+    if ctx.author.id not in credits_data:
+        credits_data[ctx.author.id] = 100
+
+    if bet > credits_data[ctx.author.id] or bet <= 0:
+        await ctx.send(":x: Ungültiger Einsatz! Stelle sicher, dass du genug Credits hast.")
+        return
+
+    embed = discord.Embed(title=":coin: Coinflip :coin:", description="Wähle Kopf oder Zahl!", color=discord.Color.blue())
+    embed.add_field(name="Kopf", value=":coin:", inline=True)
+    embed.add_field(name="Zahl", value=":coin:", inline=True)
+
+    await ctx.send(embed=embed, view=CoinflipView())
 
                     
                     
