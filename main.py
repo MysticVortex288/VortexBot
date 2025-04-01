@@ -355,7 +355,7 @@ async def pay(ctx, member: discord.Member, amount: int):
 
     # ================= CASINO BEFEHLE =====================
     # Kartendeck für Blackjack
-CARD_VALUES = {
+CCARD_VALUES = {
     "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9, "10": 10,
     "J": 10, "Q": 10, "K": 10, "A": 11
 }
@@ -365,15 +365,17 @@ CARD_EMOJIS = {
     "J": "🃏", "Q": "👸", "K": "🤴", "A": "🅰️"
 }
 
-bot = commands.Bot(command_prefix="!")
+intents = discord.Intents.default()
+intents.message_content = True  # Erforderlich für Befehle mit Nachrichteninhalt
+bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Funktion zum Ziehen einer Karte
 def draw_card():
-    return random.choice(list(CARD_VALUES.keys()))
+    return random.choice(list(CCARD_VALUES.keys()))
 
 # Berechnung des Handwerts
 def hand_value(hand):
-    value = sum(CARD_VALUES[card] for card in hand)
+    value = sum(CCARD_VALUES[card] for card in hand)
     ace_count = hand.count("A")
     while value > 21 and ace_count > 0:
         value -= 10
@@ -471,11 +473,6 @@ async def blackjack(ctx, bet: int):
     
     game = BlackjackGame(ctx, bet, credits_data)
     await game.start_game()
-
-    #====================== DESIGNED NACHRICHT =====================
-     #Fügt "Designed by MysticVortex" nach jeder Nachricht hinzu
-    async def send_message(ctx, content):
-      await ctx.send(f"{content}\n\n*Designed by MysticVortex*")
 
 
 
