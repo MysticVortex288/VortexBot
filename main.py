@@ -86,6 +86,9 @@ async def untimeout(ctx, member: discord.Member):
 async def online(ctx):
     await ctx.send("✨ **Ich bin online!** 🚀"
     "Was kann ich für dich tun mein Lieber:wink:")
+  # Online Nachricht embed machen
+    embed = discord.Embed(title="Bot Status", description="Der Bot ist online!", color=discord.Color.green())
+    
 
 # ===================== INVITE SYSTEM =====================
 @bot.command()
@@ -468,7 +471,7 @@ async def blackjack(ctx, bet: int):
         if message.author == bot.user:
             embed = discord.Embed(description="Designed by MysticVortex", color=discord.Color.blue())
             await message.channel.send(embed=embed)
-            
+
 
 
 
