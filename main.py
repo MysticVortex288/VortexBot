@@ -1,6 +1,8 @@
+from cProfile import label
 from math import remainder
 import random
 from tarfile import data_filter
+from click import style
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
@@ -55,6 +57,9 @@ async def hilfe(ctx):
     embed.add_field(name="!bal @User", value="Zeigt das Guthaben eines anderen Benutzers an.", inline=True)
     embed.add_field(name="🔹 **Casino Befehle**", value="Spiele mit deinen Credits Casino.", inline=False)
     embed.add_field(name="!blackjack (Betrag)", value="Spiele Blackjack mit deinen Credits.", inline=True)
+    embed.add_field(name="!coinflip (Betrag)", value="Spiele Kopf oder Zahl mit deinen Credits.", inline=True)
+    embed.set_footer(text="Designed by MysticVortex")
+    embed.timestamp = datetime.datetime.utcnow()
 
 
 
@@ -88,7 +93,7 @@ async def online(ctx):
     "Was kann ich für dich tun mein Lieber:wink:")
   # Online Nachricht embed machen
     embed = discord.Embed(title="Bot Status", description="Der Bot ist online!", color=discord.Color.green())
-    
+
 
 # ===================== INVITE SYSTEM =====================
 @bot.command()
@@ -462,8 +467,27 @@ async def blackjack(ctx, bet: int):
 
     game = BlackjackGame(ctx, bet)
     await game.start_game()
+    # Coinflip Spiel mit zwei knöpfen Kopf oder Zahl
+    @bot.command()
+    async def coinflip(ctx, bet: int):
+        if ctx.author.id not in credits_data:
+            credits_data[ctx.author.id] = 100
+            if bet > credits_data[ctx.author.id] or bet <= 0:
+                await ctx.send(":x: Ungültiger Einsatz! Stelle sicher, dass du genug Credits hast.")
+                return
+            embed = discord.Embed(title=":coin: Coinflip :coin:", description="Wähle Kopf oder Zahl!", color=discord.Color.blue())
+            embed.add_field(name="Kopf", value=":coin:", inline=True)
+            embed.add_field(name="Zahl", value=":coin:", inline=True)
+            await ctx.send(embed=embed)
+            #Button für Kopf und Zahl
+            class CoinflipView(discord.ui.View):
+                def __init__(self):
+                    super().__init__(timeout=60)
+                    self.add_item(CoinflipButton("Kopf"))
+                    self.add_item(CoinflipButton("Zahl"))
 
-
+                    
+                    
     #====================== DESIGNED NACHRICHT =====================
     # Bei der Nachricht der der Bot schickt soll man unten stehen haben designed by "MysticVortex"
     @bot.event
