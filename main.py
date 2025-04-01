@@ -469,46 +469,7 @@ async def blackjack(ctx, bet: int):
 
     game = BlackjackGame(ctx, bet)
     await game.start_game()
-    # Coinflip Spiel mit zwei knöpfen Kopf oder Zahl
-    class CoinflipButton(discord.ui.Button):
-     def __init__(self, ctx, bet):
-        super().__init__(label="🎲 Kopf oder Zahl", style=discord.ButtonStyle.primary)
-        self.ctx = ctx
-        self.bet = bet
-
-    async def callback(self, interaction: discord.Interaction):
-        outcome = random.choice(["Kopf", "Zahl"])
-        user_choice = "Kopf" if random.choice([True, False]) else "Zahl"
-        
-        # Determine the result of the coinflip
-        result_message = "❌ Du hast verloren!" if outcome != user_choice else f"🎉 Du hast {self.bet * 2} Credits gewonnen!"
-
-        # Update user's credits
-        if outcome == user_choice:
-            credits_data[self.ctx.author.id] += self.bet * 2
-        else:
-            credits_data[self.ctx.author.id] -= self.bet
-
-        # Send result
-        await interaction.response.send_message(f"Das Ergebnis ist: {outcome}. {result_message}", ephemeral=True)
-        
-class CoinflipView(discord.ui.View):
-    def __init__(self, ctx, bet):
-        super().__init__(timeout=60)
-        self.ctx = ctx
-        self.add_item(CoinflipButton(ctx, bet))
-
-@bot.command()
-async def coinflip(ctx, bet: int):
-    if ctx.author.id not in credits_data:
-        credits_data[ctx.author.id] = 100  # Startguthaben
-
-    if bet <= 0 or bet > credits_data[ctx.author.id]:
-        await ctx.send("❌ Ungültiger Einsatz! Stelle sicher, dass du genug Credits hast und der Einsatz größer als 0 ist.")
-        return
-
-    await ctx.send(f"🎲 Du hast {bet} Credits auf Kopf oder Zahl gesetzt. Klicke auf den Button, um zu spielen!", view=CoinflipView(ctx, bet))
-
+    
 
     #======================ERROR HANDLER =====================
     @bot.event
