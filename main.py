@@ -355,27 +355,22 @@ async def pay(ctx, member: discord.Member, amount: int):
 
     # ================= CASINO BEFEHLE =====================
     # Kartendeck für Blackjack
-CCARD_VALUES = {
+CARD_VALUES = {
     "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9, "10": 10,
-    "J": 10, "Q": 10, "K": 10, "A": 11
+    "J": 10, "Q": 10, "K": 10, "A": 11  # Ass kann 1 oder 11 sein
 }
-
 CARD_EMOJIS = {
     "2": "2️⃣", "3": "3️⃣", "4": "4️⃣", "5": "5️⃣", "6": "6️⃣", "7": "7️⃣", "8": "8️⃣", "9": "9️⃣", "10": "🔟",
     "J": "🃏", "Q": "👸", "K": "🤴", "A": "🅰️"
 }
 
-intents = discord.Intents.default()
-intents.message_content = True  # Erforderlich für Befehle mit Nachrichteninhalt
-bot = commands.Bot(command_prefix="!", intents=intents)
+credits_data = {}
 
-# Funktion zum Ziehen einer Karte
 def draw_card():
-    return random.choice(list(CCARD_VALUES.keys()))
+    return random.choice(list(CARD_VALUES.keys()))
 
-# Berechnung des Handwerts
 def hand_value(hand):
-    value = sum(CCARD_VALUES[card] for card in hand)
+    value = sum(CARD_VALUES[card] for card in hand)
     ace_count = hand.count("A")
     while value > 21 and ace_count > 0:
         value -= 10
@@ -383,15 +378,13 @@ def hand_value(hand):
     return value
 
 class BlackjackGame(discord.ui.View):
-    def __init__(self, ctx, bet, credits_data):
+    def __init__(self, ctx, bet):
         super().__init__(timeout=60)
         self.ctx = ctx
         self.bet = bet
-        self.credits_data = credits_data
         self.player_hand = [draw_card(), draw_card()]
         self.dealer_hand = [draw_card(), draw_card()]
         self.finished = False
-        self.message = None
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         return interaction.user == self.ctx.author
@@ -402,32 +395,31 @@ class BlackjackGame(discord.ui.View):
         if hand_value(self.player_hand) > 21:
             await self.end_game(interaction, "💥 Du hast über 21! **Verloren!** ❌")
         else:
-            await self.update_message()
+            await self.update_message(interaction)
 
     @discord.ui.button(label="Stand", style=discord.ButtonStyle.red)
     async def stand(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer()
+        await interaction.response.send_message("🤵 Der Dealer zieht seine Karten...", ephemeral=True)
         await asyncio.sleep(2)
         while hand_value(self.dealer_hand) < 17:
             self.dealer_hand.append(draw_card())
-            await self.update_message()
+            await self.update_message(interaction)
             await asyncio.sleep(1)
-        await self.evaluate_game(interaction)
 
-    async def evaluate_game(self, interaction):
         player_value = hand_value(self.player_hand)
         dealer_value = hand_value(self.dealer_hand)
+
         if dealer_value > 21 or player_value > dealer_value:
             winnings = self.bet * 2
-            self.credits_data[self.ctx.author.id] += winnings
+            credits_data[self.ctx.author.id] += winnings
             await self.end_game(interaction, f"🎉 **Gewonnen!** Du bekommst {winnings} Credits! 🏆")
         elif player_value < dealer_value:
             await self.end_game(interaction, "❌ **Verloren!** Der Dealer hatte eine bessere Hand.")
         else:
-            self.credits_data[self.ctx.author.id] += self.bet
+            credits_data[self.ctx.author.id] += self.bet
             await self.end_game(interaction, "⚖️ **Unentschieden!** Dein Einsatz wurde zurückgegeben.")
 
-    async def update_message(self):
+    async def update_message(self, interaction: discord.Interaction):
         embed = self.create_embed()
         await self.message.edit(embed=embed, view=self)
 
@@ -453,26 +445,24 @@ class BlackjackGame(discord.ui.View):
         return embed
 
     async def start_game(self):
-        self.credits_data[self.ctx.author.id] -= self.bet
+        credits_data[self.ctx.author.id] -= self.bet
         embed = self.create_embed()
         self.message = await self.ctx.send(embed=embed, view=self)
 
 @bot.command()
 async def blackjack(ctx, bet: int):
-    if bet <= 0:
-        await ctx.send("❌ Dein Einsatz muss größer als 0 sein!")
+    if ctx.author.id not in credits_data:
+        credits_data[ctx.author.id] = 100  # Startguthaben
+    if bet > credits_data[ctx.author.id] or bet <= 0:
+        await ctx.send("❌ Ungültiger Einsatz! Stelle sicher, dass du genug Credits hast.")
         return
-    
-    user_id = ctx.author.id
-    if user_id not in credits_data:
-        credits_data[user_id] = 1000  # Standard Startkapital
-    
-    if bet > credits_data[user_id]:
-        await ctx.send("❌ Du hast nicht genug Credits!")
-        return
-    
-    game = BlackjackGame(ctx, bet, credits_data)
+
+    game = BlackjackGame(ctx, bet)
     await game.start_game()
+    #====================== DESIGNED NACHRICHT =====================
+     #Fügt "Designed by MysticVortex" nach jeder Nachricht hinzu
+    async def send_message(ctx, content):
+      await ctx.send(f"{content}\n\n*Designed by MysticVortex*")
 
 
 
