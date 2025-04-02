@@ -21,8 +21,11 @@ from requests import delete
 
 
 TOKEN = os.getenv("TOKEN")
-print(f"TOKEN: {TOKEN}")  # Debugging
 
+if TOKEN is None:
+    print("❌ TOKEN ist None! Railway gibt die Variable nicht weiter.")
+else:
+    print(f"✅ TOKEN gefunden: {TOKEN[:5]}... (gekürzt für Sicherheit)")
 # Prefix für die Befehle
 PREFIX = '!'
 
