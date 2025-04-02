@@ -470,33 +470,57 @@ async def blackjack(ctx, bet: int):
 
     game = BlackjackGame(ctx, bet)
     await game.start_game()
-    # Coinflip spiel wo man kopf oder Zahl mit Reaktionen von den Bot wählen kann
-    @bot.command()
-    async def coinflip(ctx, bet: int):
-        if ctx.author.id not in credits_data:
-            credits_data[ctx.author.id] = 100
-            if bet > credits_data[ctx.author.id] or bet <= 0:
-                await ctx.send(":x: Ungültiger Einsatz! Stelle sicher, dass du genug Credits hast.")
-                return
-            # Generiere Kopf oder Zahl
-            result = random.choice(["Kopf", "Zahl"])
-            embed = discord.Embed(title=":coin: Coinflip", description=f"Du hast {bet} Credits gesetzt!", color=discord.Color.blue())
-            embed.add_field(name="Ergebnis", value=result, inline=False)
-            embed.set_footer(text="Klicke auf die Reaktion, um zu wetten!")
-            message = await ctx.send(embed=embed)
-            await message.add_reaction(":1234:") # Kopf
-            await message.add_reaction(":1234:") # Zahl
-            def check(reaction, user):
-                return user == ctx.author and str(reaction.emoji) in [":1234:"]
-            rection , user = await bot.wait_for("reaction_add", check=check)
-            if discord.Reaction.emoji == ":1234:":
-                await ctx.send(f":tada: Du hast {bet} Credits gewonnen!")
-            else:
-                credits_data[ctx.author.id] -= bet
-                await ctx.send(f":x: Du hast {bet} Credits verloren!")
-                credits_data[ctx.author.id] -= bet
-                await ctx.send(f"Du hast jetzt {credits_data[ctx.author.id]} Credits!")
-                
+@bot.command()
+async def coinflip(ctx, bet: int):
+    # Falls der Spieler noch keine Credits hat, initialisiere ihn mit 100
+    if ctx.author.id not in credits_data:
+        credits_data[ctx.author.id] = 100
+
+    # Überprüfe, ob der Einsatz gültig ist
+    if bet > credits_data[ctx.author.id] or bet <= 0:
+        await ctx.send(":x: Ungültiger Einsatz! Stelle sicher, dass du genug Credits hast.")
+        return
+
+    # Generiere das Ergebnis des Coinflips
+    result = random.choice(["Kopf", "Zahl"])
+
+    # Erstellt das Embed für das Coinflip-Spiel
+    embed = discord.Embed(
+        title=":coin: Coinflip",
+        description=f"Du hast {bet} Credits gesetzt!",
+        color=discord.Color.blue()
+    )
+    embed.add_field(name="Ergebnis", value="🔵 = Kopf | 🔴 = Zahl", inline=False)
+    embed.set_footer(text="Reagiere mit 🔵 oder 🔴, um deine Wahl zu treffen!")
+
+    # Nachricht senden
+    message = await ctx.send(embed=embed)
+
+    # Reaktionen hinzufügen
+    await message.add_reaction("🔵")  # Kopf
+    await message.add_reaction("🔴")  # Zahl
+
+    # Überprüfungsfunktion für die Reaktion
+    def check(reaction, user):
+        return user == ctx.author and str(reaction.emoji) in ["🔵", "🔴"]
+
+    # Warte auf die Reaktion des Spielers
+    try:
+        reaction, user = await bot.wait_for("reaction_add", check=check, timeout=30)
+    except TimeoutError:
+        await ctx.send("⏳ Du hast zu lange gebraucht! Das Spiel wurde abgebrochen.")
+        return
+
+    # Überprüfung, ob die Wahl mit dem Ergebnis übereinstimmt
+    player_choice = "Kopf" if str(reaction.emoji) == "🔵" else "Zahl"
+
+    if player_choice == result:
+        credits_data[ctx.author.id] += bet
+        await ctx.send(f":tada: Glückwunsch! Du hast {bet} Credits gewonnen! Du hast jetzt {credits_data[ctx.author.id]} Credits.")
+    else:
+        credits_data[ctx.author.id] -= bet
+        await ctx.send(f":x: Pech gehabt! Du hast {bet} Credits verloren. Du hast jetzt {credits_data[ctx.author.id]} Credits.")
+
 
     
     #======================ERROR HANDLER =====================
