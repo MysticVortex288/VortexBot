@@ -12,6 +12,7 @@ import os
 import asyncio
 from datetime import timedelta
 import datetime
+import openai
 
 
 from flask import ctx
