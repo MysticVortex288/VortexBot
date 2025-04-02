@@ -529,46 +529,8 @@ async def coinflip(ctx, bet: int):
     
     
 
-            #====================== KI ==========================
-    # Lade die API-Keys aus den Umgebungsvariablen
-openai.api_key = os.getenv("OPENAI_API_KEY")
-TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-
-# Erstelle das Bot-Objekt mit Präfix "!"
-intents = discord.Intents.default()
-intents.messages = True
-intents.message_content = True
-bot = commands.Bot(command_prefix="!", intents=intents)
-
-# Speicher für den KI-Kanal
-ki_channels = {}
-
-@bot.event
-async def on_ready():
-    print(f'✅ {bot.user} ist bereit!')
-
-# Befehl zum Setzen des KI-Kanals
-@bot.command()
-async def setupki(ctx, kanal: discord.TextChannel):
-    ki_channels[ctx.guild.id] = kanal.id
-    await ctx.send(f'🤖 KI wird nun in {kanal.mention} verwendet!')
-
-# Nachrichtenverarbeitung für die KI
-@bot.event
-async def on_message(message):
-    if message.author == bot.user:
-        return
+            
     
-    guild_id = message.guild.id
-    if guild_id in ki_channels and message.channel.id == ki_channels[guild_id]:
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": message.content}]
-        )
-        antwort = response["choices"][0]["message"]["content"]
-        await message.channel.send(antwort)
-    
-    await bot.process_commands(message)
 # ===================== BOT START =====================
     @bot.event
     async def on_ready():
