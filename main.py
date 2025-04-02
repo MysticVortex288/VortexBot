@@ -20,7 +20,7 @@ import openai
 from requests import delete
 
 
-TOKEN = os.getenv("TOKEN")
+TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
 if TOKEN:
     TOKEN = TOKEN.strip()  # Entfernt unsichtbare Leerzeichen/Zeilenumbrüche
