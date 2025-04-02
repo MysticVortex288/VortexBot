@@ -525,64 +525,43 @@ async def coinflip(ctx, bet: int):
         credits_data[ctx.author.id] -= bet
         await ctx.send(f":x: Pech gehabt! Du hast {bet} Credits verloren. Du hast jetzt {credits_data[ctx.author.id]} Credits.")
    #===========================KI========================
-# Lade den OpenAI API-Schlüssel aus der Umgebungsvariablen
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# OpenAI API-Schlüssel (ersetze mit deinem echten API-Schlüssel)
+openai.api_key = "DEIN_OPENAI_API_KEY"
 
-# Überprüfen, ob der API-Schlüssel vorhanden ist
-if not openai.api_key:
-    print("Fehler: OpenAI API-Schlüssel wurde nicht gesetzt.")
-    exit()
-
-# Setze Intents für den Bot (damit er auf Nachrichten zugreifen kann)
+# Bot-Setup
 intents = discord.Intents.default()
 intents.message_content = True
-
-# Erstelle den Bot mit dem richtigen Prefix und den Intents
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Variable, um den KI-Kanal zu speichern
+# Speichert den KI-Kanal
 ki_kanal = None
 
 @bot.command()
 async def setupki(ctx, kanal: discord.TextChannel):
-    """
-    Setzt den Kanal, in dem der Bot ohne Prefix auf Nachrichten reagiert.
-    """
+    """Setzt den Kanal, in dem die KI antwortet."""
     global ki_kanal
-    ki_kanal = kanal
-    await ctx.send(f"Der KI-Kanal wurde auf {kanal.mention} gesetzt!")
+    ki_kanal = kanal.id
+    await ctx.send(f"✅ KI ist nun in {kanal.mention} aktiv!")
 
 @bot.event
 async def on_message(message):
-    """
-    Verarbeitet alle eingehenden Nachrichten und lässt den Bot
-    auf Nachrichten im KI-Kanal ohne Prefix antworten,
-    während alle anderen Befehle normal bearbeitet werden.
-    """
+    """Reagiert mit KI-Antworten, wenn im richtigen Kanal geschrieben wird."""
     global ki_kanal
-
-    # Ignoriere Nachrichten vom Bot selbst
-    if message.author == bot.user:
-        return
-
-    # Reagiere nur im KI-Kanal auf Nachrichten ohne Prefix
-    if ki_kanal and message.channel == ki_kanal:
+    if message.author.bot:
+        return  # Ignoriere andere Bots
+    
+    if ki_kanal and message.channel.id == ki_kanal:
         try:
-            # Generiere eine Antwort von der OpenAI-API
-            response = openai.Completion.create(
-                engine="text-davinci-003",  # Oder ein anderes Modell deiner Wahl
-                prompt=message.content,
-                max_tokens=150,
-                temperature=0.7
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": message.content}]
             )
-
-            # Antwort im Kanal senden
-            await message.channel.send(response.choices[0].text.strip())
+            answer = response["choices"][0]["message"]["content"]
+            await message.channel.send(answer)
         except Exception as e:
-            await message.channel.send(f"Fehler bei der KI-Antwort: {str(e)}")
+            await message.channel.send(f"⚠️ Fehler: {e}")
 
-    # Hier sicherstellen, dass alle Befehle verarbeitet werden
-    await bot.process_commands(message)
+    await bot.process_commands(message)  # Wichtiger Teil, um Befehle nicht zu blockieren
 
 
 
