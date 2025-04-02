@@ -525,28 +525,28 @@ async def coinflip(ctx, bet: int):
         credits_data[ctx.author.id] -= bet
         await ctx.send(f":x: Pech gehabt! Du hast {bet} Credits verloren. Du hast jetzt {credits_data[ctx.author.id]} Credits.")
    #===========================KI========================
-   # Lade den OpenAI API-Schlüssel aus der Umgebungsvariable
-openai.api_key = os.getenv("OPENAI_API_KEY")  # API-Schlüssel wird aus der Umgebungsvariable abgerufen
+# Lade den OpenAI API-Schlüssel aus der Umgebungsvariablen
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# Stelle sicher, dass der API-Schlüssel korrekt gesetzt ist
-if openai.api_key is None:
-    print("Fehler: Der OpenAI API-Schlüssel wurde nicht in den Umgebungsvariablen gesetzt.")
+# Überprüfen, ob der API-Schlüssel vorhanden ist
+if not openai.api_key:
+    print("Fehler: OpenAI API-Schlüssel wurde nicht gesetzt.")
     exit()
 
-# Setze Intents, die für den Bot erforderlich sind
+# Setze Intents für den Bot (damit er auf Nachrichten zugreifen kann)
 intents = discord.Intents.default()
-intents.message_content = True  # Damit der Bot Nachrichteninhalte lesen kann
+intents.message_content = True
 
-# Erstelle den Bot mit den Intents
+# Erstelle den Bot mit dem richtigen Prefix und den Intents
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Der Kanal, in dem der Bot auf Nachrichten ohne Prefix reagiert
+# Variable, um den KI-Kanal zu speichern
 ki_kanal = None
 
 @bot.command()
 async def setupki(ctx, kanal: discord.TextChannel):
     """
-    Setzt den Kanal, in dem die KI aktiv ist und auf Nachrichten ohne Prefix reagiert.
+    Setzt den Kanal, in dem der Bot ohne Prefix auf Nachrichten reagiert.
     """
     global ki_kanal
     ki_kanal = kanal
@@ -555,30 +555,34 @@ async def setupki(ctx, kanal: discord.TextChannel):
 @bot.event
 async def on_message(message):
     """
-    Verarbeitet eingehende Nachrichten.
-    Der Bot antwortet ohne Prefix im KI-Kanal, andernfalls benötigt er das Prefix.
+    Verarbeitet alle eingehenden Nachrichten und lässt den Bot
+    auf Nachrichten im KI-Kanal ohne Prefix antworten,
+    während alle anderen Befehle normal bearbeitet werden.
     """
     global ki_kanal
 
-    # Überprüfen, ob der Bot auf Nachrichten im richtigen Kanal reagieren soll
-    if ki_kanal and message.channel == ki_kanal and message.author != bot.user:
+    # Ignoriere Nachrichten vom Bot selbst
+    if message.author == bot.user:
+        return
+
+    # Reagiere nur im KI-Kanal auf Nachrichten ohne Prefix
+    if ki_kanal and message.channel == ki_kanal:
         try:
-            # OpenAI API, um eine Antwort zu generieren
+            # Generiere eine Antwort von der OpenAI-API
             response = openai.Completion.create(
-                engine="text-davinci-003",  # Verwende das Modell deiner Wahl
+                engine="text-davinci-003",  # Oder ein anderes Modell deiner Wahl
                 prompt=message.content,
                 max_tokens=150,
                 temperature=0.7
             )
 
-            # Antwort in den Kanal senden
+            # Antwort im Kanal senden
             await message.channel.send(response.choices[0].text.strip())
-
         except Exception as e:
-            await message.channel.send(f"Ein Fehler ist aufgetreten: {e}")
-    else:
-        # Verarbeite andere Bot-Befehle, aber nur, wenn die Nachricht das richtige Prefix hat
-        await bot.process_commands(message)
+            await message.channel.send(f"Fehler bei der KI-Antwort: {str(e)}")
+
+    # Hier sicherstellen, dass alle Befehle verarbeitet werden
+    await bot.process_commands(message)
 
 
 
