@@ -527,21 +527,7 @@ async def coinflip(ctx, bet: int):
 
 
     
-    #======================ERROR HANDLER =====================
-    @bot.event
-    async def on_message(message):
-    # Verhindere, dass der Bot auf eigene Nachrichten reagiert
-     if message.author == bot.user:
-        return
-
-    # Wenn die Nachricht mit "!" beginnt, aber kein Befehl ist
-    if message.content.startswith("!"):
-        try:
-            # Versuche, die Nachricht als Befehl zu verarbeiten
-            await bot.process_commands(message)
-        except commands.CommandNotFound:
-            # Wenn der Befehl nicht gefunden wird, eine Fehlermeldung senden
-            await message.channel.send("Fehler: Das ist kein gültiger Befehl.")
+    
 
             #====================== KI ==========================
     # Lade die API-Keys aus den Umgebungsvariablen
