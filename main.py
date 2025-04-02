@@ -542,47 +542,45 @@ async def coinflip(ctx, bet: int):
             await message.channel.send("Fehler: Das ist kein gültiger Befehl.")
 
             #====================== KI ==========================
-    openai.api_key = os.getenv("OPENAI_API_KEY")  # Holt den API-Key aus den Railway-Env-Variablen
+    # Lade die API-Keys aus den Umgebungsvariablen
+openai.api_key = os.getenv("OPENAI_API_KEY")
+TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
-# Speichert den KI-Kanal
-ki_kanal = None
+# Erstelle das Bot-Objekt mit Präfix "!"
+intents = discord.Intents.default()
+intents.messages = True
+intents.message_content = True
+bot = commands.Bot(command_prefix="!", intents=intents)
 
-@bot.command()
-async def setupki(ctx, kanal: discord.TextChannel):
-    """Setzt den Kanal, in dem die KI antwortet."""
-    global ki_kanal
-    ki_kanal = kanal.id
-    await ctx.send(f"✅ KI ist nun in {kanal.mention} aktiv!")
+# Speicher für den KI-Kanal
+ki_channels = {}
 
 @bot.event
-async def on_message(message):
-    """Reagiert mit KI-Antworten, wenn im richtigen Kanal geschrieben wird."""
-    global ki_kanal
-    if message.author.bot:
-        return  # Ignoriere andere Bots
-    
-    if ki_kanal and message.channel.id == ki_kanal:
-        try:
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": message.content}]
-            )
-            answer = response["choices"][0]["message"]["content"]
-            await message.channel.send(answer)
-        except Exception as e:
-            await message.channel.send(f"⚠️ Fehler: {e}")
+async def on_ready():
+    print(f'✅ {bot.user} ist bereit!')
 
-    await bot.process_commands(message)  # Wichtiger Teil, um Befehle nicht zu blockieren
-
+# Befehl zum Setzen des KI-Kanals
 @bot.command()
-async def ping(ctx):
-    await ctx.send("Pong!")
+async def setupki(ctx, kanal: discord.TextChannel):
+    ki_channels[ctx.guild.id] = kanal.id
+    await ctx.send(f'🤖 KI wird nun in {kanal.mention} verwendet!')
 
-
-
-
-
-
+# Nachrichtenverarbeitung für die KI
+@bot.event
+async def on_message(message):
+    if message.author == bot.user:
+        return
+    
+    guild_id = message.guild.id
+    if guild_id in ki_channels and message.channel.id == ki_channels[guild_id]:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": message.content}]
+        )
+        antwort = response["choices"][0]["message"]["content"]
+        await message.channel.send(antwort)
+    
+    await bot.process_commands(message)
 # ===================== BOT START =====================
     @bot.event
     async def on_ready():
