@@ -20,15 +20,13 @@ import openai
 from requests import delete
 
 
-TOKEN = os.getenv("DISCORD_BOT_TOKEN")
+# Lade Umgebungsvariablen aus der .env-Datei
+load_dotenv()
+TOKEN = os.getenv('TOKEN')
 
-if TOKEN:
-    TOKEN = TOKEN.strip()  # Entfernt unsichtbare Leerzeichen/Zeilenumbrüche
-    print(f"✅ TOKEN gefunden: {TOKEN[:5]}... (gekürzt für Sicherheit)")
-else:
-    print("❌ TOKEN ist None! Railway gibt die Variable nicht weiter.")
-    print(f"TOKEN Wert: {repr(TOKEN)}")  # Zeigt exakten Wert
-print(f"TOKEN Typ: {type(TOKEN)}")   # Zeigt den Typ
+if TOKEN is None:
+    print("Fehler: Der Token wurde nicht geladen!")
+
 # Prefix für die Befehle
 PREFIX = '!'
 
@@ -524,15 +522,73 @@ async def coinflip(ctx, bet: int):
     else:
         credits_data[ctx.author.id] -= bet
         await ctx.send(f":x: Pech gehabt! Du hast {bet} Credits verloren. Du hast jetzt {credits_data[ctx.author.id]} Credits.")
-   #===========================KI========================
 
 
-            
     
+    #======================ERROR HANDLER =====================
+    @bot.event
+    async def on_message(message):
+    # Verhindere, dass der Bot auf eigene Nachrichten reagiert
+     if message.author == bot.user:
+        return
+
+    # Wenn die Nachricht mit "!" beginnt, aber kein Befehl ist
+    if message.content.startswith("!"):
+        try:
+            # Versuche, die Nachricht als Befehl zu verarbeiten
+            await bot.process_commands(message)
+        except commands.CommandNotFound:
+            # Wenn der Befehl nicht gefunden wird, eine Fehlermeldung senden
+            await message.channel.send("Fehler: Das ist kein gültiger Befehl.")
+
+            #====================== KI ==========================
+    openai.api_key = os.getenv("OPENAI_API_KEY")  # Holt den API-Key aus den Railway-Env-Variablen
+
+# Speichert den KI-Kanal
+ki_kanal = None
+
+@bot.command()
+async def setupki(ctx, kanal: discord.TextChannel):
+    """Setzt den Kanal, in dem die KI antwortet."""
+    global ki_kanal
+    ki_kanal = kanal.id
+    await ctx.send(f"✅ KI ist nun in {kanal.mention} aktiv!")
+
+@bot.event
+async def on_message(message):
+    """Reagiert mit KI-Antworten, wenn im richtigen Kanal geschrieben wird."""
+    global ki_kanal
+    if message.author.bot:
+        return  # Ignoriere andere Bots
+    
+    if ki_kanal and message.channel.id == ki_kanal:
+        try:
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": message.content}]
+            )
+            answer = response["choices"][0]["message"]["content"]
+            await message.channel.send(answer)
+        except Exception as e:
+            await message.channel.send(f"⚠️ Fehler: {e}")
+
+    await bot.process_commands(message)  # Wichtiger Teil, um Befehle nicht zu blockieren
+
+@bot.command()
+async def ping(ctx):
+    await ctx.send("Pong!")
+
+    
+    
+
+
+
+
+
+
 # ===================== BOT START =====================
     @bot.event
     async def on_ready():
      print(f"✅ Bot ist online als {bot.user}")
 
 bot.run(TOKEN)
-
