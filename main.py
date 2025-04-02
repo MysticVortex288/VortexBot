@@ -20,12 +20,8 @@ import openai
 from requests import delete
 
 
-# Lade Umgebungsvariablen aus der .env-Datei
-load_dotenv()
-TOKEN = os.getenv('TOKEN')
-
-if TOKEN is None:
-    print("Fehler: Der Token wurde nicht geladen!")
+TOKEN = os.getenv("TOKEN")
+print(f"TOKEN: {TOKEN}")  # Debugging
 
 # Prefix für die Befehle
 PREFIX = '!'
