@@ -27,6 +27,8 @@ if TOKEN:
     print(f"✅ TOKEN gefunden: {TOKEN[:5]}... (gekürzt für Sicherheit)")
 else:
     print("❌ TOKEN ist None! Railway gibt die Variable nicht weiter.")
+    print(f"TOKEN Wert: {repr(TOKEN)}")  # Zeigt exakten Wert
+print(f"TOKEN Typ: {type(TOKEN)}")   # Zeigt den Typ
 # Prefix für die Befehle
 PREFIX = '!'
 
