@@ -525,44 +525,6 @@ async def coinflip(ctx, bet: int):
         credits_data[ctx.author.id] -= bet
         await ctx.send(f":x: Pech gehabt! Du hast {bet} Credits verloren. Du hast jetzt {credits_data[ctx.author.id]} Credits.")
    #===========================KI========================
-# OpenAI API-Schlüssel (ersetze mit deinem echten API-Schlüssel)
-openai.api_key = "DEIN_OPENAI_API_KEY"
-
-# Bot-Setup
-intents = discord.Intents.default()
-intents.message_content = True
-bot = commands.Bot(command_prefix="!", intents=intents)
-
-# Speichert den KI-Kanal
-ki_kanal = None
-
-@bot.command()
-async def setupki(ctx, kanal: discord.TextChannel):
-    """Setzt den Kanal, in dem die KI antwortet."""
-    global ki_kanal
-    ki_kanal = kanal.id
-    await ctx.send(f"✅ KI ist nun in {kanal.mention} aktiv!")
-
-@bot.event
-async def on_message(message):
-    """Reagiert mit KI-Antworten, wenn im richtigen Kanal geschrieben wird."""
-    global ki_kanal
-    if message.author.bot:
-        return  # Ignoriere andere Bots
-    
-    if ki_kanal and message.channel.id == ki_kanal:
-        try:
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": message.content}]
-            )
-            answer = response["choices"][0]["message"]["content"]
-            await message.channel.send(answer)
-        except Exception as e:
-            await message.channel.send(f"⚠️ Fehler: {e}")
-
-    await bot.process_commands(message)  # Wichtiger Teil, um Befehle nicht zu blockieren
-
 
 
             
