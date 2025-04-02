@@ -22,10 +22,11 @@ from requests import delete
 
 TOKEN = os.getenv("TOKEN")
 
-if TOKEN is None:
-    print("❌ TOKEN ist None! Railway gibt die Variable nicht weiter.")
-else:
+if TOKEN:
+    TOKEN = TOKEN.strip()  # Entfernt unsichtbare Leerzeichen/Zeilenumbrüche
     print(f"✅ TOKEN gefunden: {TOKEN[:5]}... (gekürzt für Sicherheit)")
+else:
+    print("❌ TOKEN ist None! Railway gibt die Variable nicht weiter.")
 # Prefix für die Befehle
 PREFIX = '!'
 
