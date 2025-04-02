@@ -533,7 +533,12 @@ if openai.api_key is None:
     print("Fehler: Der OpenAI API-Schlüssel wurde nicht in den Umgebungsvariablen gesetzt.")
     exit()
 
-bot = commands.Bot(command_prefix="!")
+# Setze Intents, die für den Bot erforderlich sind
+intents = discord.Intents.default()
+intents.message_content = True  # Damit der Bot Nachrichteninhalte lesen kann
+
+# Erstelle den Bot mit den Intents
+bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Der Kanal, in dem der Bot auf Nachrichten ohne Prefix reagiert
 ki_kanal = None
@@ -586,9 +591,6 @@ async def help(ctx):
         "Der Bot antwortet nur im festgelegten Kanal ohne Prefix.\n"
     )
     await ctx.send(help_text)
-
-    
-    
 
             
     
