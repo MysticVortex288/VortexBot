@@ -1,0 +1,103 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card border-secondary">
+            <div class="card-header bg-dark">
+                <h2 class="text-center mb-0">
+                    <i class="fas fa-server me-2"></i>
+                    Minecraft Server Status Bot
+                </h2>
+            </div>
+            <div class="card-body">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                <i class="fas fa-info-circle me-2"></i>{{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Schließen"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <div class="p-4 mb-4 bg-dark rounded">
+                    <h3 class="mb-3">Bot-Befehle:</h3>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="card">
+                                <div class="card-header bg-primary text-white">
+                                    <i class="fas fa-cog me-2"></i>Setup
+                                </div>
+                                <div class="card-body">
+                                    <p class="card-text"><code>/setup/&lt;server-adresse&gt;</code></p>
+                                    <p class="small text-muted">Richtet einen Minecraft-Server für die Überwachung ein</p>
+                                    <p class="small">Beispiel: <code>/setup/mc.beispiel.com</code></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="card">
+                                <div class="card-header bg-info text-white">
+                                    <i class="fas fa-info-circle me-2"></i>Status
+                                </div>
+                                <div class="card-body">
+                                    <p class="card-text"><code>/status</code></p>
+                                    <p class="small text-muted">Zeigt den aktuellen Status des eingerichteten Servers an</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-center mt-3">
+                    {% if session.get('server_address') %}
+                    <div class="alert alert-success">
+                        <p><strong>Aktueller Server:</strong> {{ session.get('server_address') }}</p>
+                        <a href="{{ url_for('status') }}" class="btn btn-primary">
+                            <i class="fas fa-server me-2"></i>Status anzeigen
+                        </a>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-secondary">
+                        <i class="fas fa-cube fa-3x mb-3 mt-2"></i>
+                        <p>Kein Server eingerichtet. Nutze <code>/setup/&lt;server-adresse&gt;</code> um einen Server einzurichten.</p>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <form action="{{ url_for('setup', server_address='') }}" method="GET" class="mt-4" id="setup-form">
+                    <div class="form-group mb-3">
+                        <label for="server_address" class="form-label">Server schnell einrichten:</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="server_address_input" 
+                                   placeholder="mc.beispiel.com oder mc.beispiel.com:25565" required>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-cog me-1"></i> Einrichten
+                            </button>
+                        </div>
+                        <div class="form-text">Gib eine Minecraft-Server-Adresse ein (optional mit Port)</div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const setupForm = document.getElementById('setup-form');
+        const serverAddressInput = document.getElementById('server_address_input');
+        
+        setupForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (serverAddressInput.value) {
+                window.location.href = '/setup/' + encodeURIComponent(serverAddressInput.value);
+            }
+        });
+    });
+</script>
+{% endblock %}
